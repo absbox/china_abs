@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.log
+
+# Virtual environments
+.venv/
+venv/
+.devenv/
+devenv/
+
+# Environment / credential files
+.env
+.env.*
+*.env
+
+# Database data
+maker/db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Nested git repositories
+maker/.git/
+absbox.cloud/.git/
+
+# maker: root-level virtualenv files
+maker/bin/
+maker/include/
+maker/lib/
+maker/lib64/
+maker/pyvenv.cfg

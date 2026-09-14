@@ -1,0 +1,29 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "postgres": {
+      "type": "local",
+      "command": [
+        "/home/xiaoyu/.local/bin/postgres-mcp",
+        "--access-mode=restricted"
+      ],
+      "enabled": true,
+      "environment": {
+        "DATABASE_URI": "postgresql://doadmin:s98347yu!5ihsZd7$823@localhost:5432/deal-library"
+      }
+    },
+    "mongodb": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "mongodb-mcp-server@latest",
+        "--readOnly"
+      ],
+      "enabled": true,
+      "environment": {
+        "MDB_MCP_CONNECTION_STRING": "mongodb://localhost:27017/mydatabase"
+      }
+    }
+  }
+}

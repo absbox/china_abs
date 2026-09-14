@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://devenv.sh/devenv.schema.json
+inputs:
+  nixpkgs:
+    # Pinned to the revision already present in the local store/cache
+    # (github.com is unreachable here; narHash resolves the source offline).
+    url: github:cachix/devenv-nixpkgs/256551e45f6303e142ab4a98be1bf243feb77dc0?narHash=sha256-Tl77VbWyAKrOfRNQhL6JbQtb/MLzbYa/1RG1gWWfICk=
+  # The devenv modules matching the installed CLI (2.1.2). Fetched as a
+  # codeload tarball because github.com is unreachable on this machine, while
+  # codeload.github.com is reachable.
+  devenv:
+    url: tarball+https://codeload.github.com/cachix/devenv/tar.gz/refs/tags/v2.1.2?dir=src/modules
+
+# mongodb-ce is unfree; required by `services.mongodb`.
+allow_unfree: true
