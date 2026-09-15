@@ -19,9 +19,14 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           script: |
             set -e
-            cd /home/xiaoyu/repo/absbox.cloud-dev             # 替换为你的项目路径
+            DEPLOY_DIR=/home/xiaoyu/repo/absbox.cloud-dev
+            if [ ! -d "$DEPLOY_DIR/.git" ]; then
+              mkdir -p "$DEPLOY_DIR"
+              git clone --branch dev https://github.com/absbox/china_abs.git "$DEPLOY_DIR"
+            fi
+            cd "$DEPLOY_DIR"
             git fetch origin dev
-            git reset --hard origin/dev       # 如果主分支是 master，改成 origin/master
             git checkout dev
-            ./venv/bin/pip install -r requirements.txt   # 替换 venv 路径
-            sudo systemctl restart absbox-cloud-dev       # 替换为你的 systemd 服务名
+            git reset --hard origin/dev
+            ./venv/bin/pip install -r requirements.txt
+            sudo systemctl restart absbox-cloud-dev
