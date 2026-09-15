@@ -17,11 +17,10 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          script_stop: true
           script: |
             set -e
             cd /home/xiaoyu/repo/absbox.cloud-dev             # 替换为你的项目路径
-            git fetch origin/dev
+            git fetch origin dev
             git reset --hard origin/dev       # 如果主分支是 master，改成 origin/master
             git checkout dev
             ./venv/bin/pip install -r requirements.txt   # 替换 venv 路径
