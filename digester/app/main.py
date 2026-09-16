@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Maker Service",
+    title="Digester Service",
     lifespan=lifespan,
     default_response_class=ORJSONResponse,
 )

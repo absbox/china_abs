@@ -20,18 +20,18 @@ devenv/
 *.env
 
 # Database data
-maker/db/
+digester/db/
 *.db
 *.sqlite
 *.sqlite3
 
 # Nested git repositories
-maker/.git/
+digester/.git/
 absbox.cloud/.git/
 
-# maker: root-level virtualenv files
-maker/bin/
-maker/include/
-maker/lib/
-maker/lib64
-maker/pyvenv.cfg
+# digester: root-level virtualenv files
+digester/bin/
+digester/include/
+digester/lib/
+digester/lib64
+digester/pyvenv.cfg

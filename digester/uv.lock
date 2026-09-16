@@ -781,7 +781,7 @@ wheels = [
 ]
 
 [[package]]
-name = "maker"
+name = "digester"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

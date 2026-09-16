@@ -9,7 +9,7 @@
       ],
       "enabled": true,
       "environment": {
-        "DATABASE_URI": "postgresql://doadmin:s98347yu!5ihsZd7$823@localhost:5432/deal-library"
+        "DATABASE_URI": "{env:DATABASE_URI}"
       }
     },
     "mongodb": {
@@ -22,7 +22,7 @@
       ],
       "enabled": true,
       "environment": {
-        "MDB_MCP_CONNECTION_STRING": "mongodb://localhost:27017/mydatabase"
+        "MDB_MCP_CONNECTION_STRING": "{env:MONGODB_URI}"
       }
     }
   }

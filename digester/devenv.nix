@@ -1,7 +1,7 @@
 { pkgs, lib, config, inputs, ... }:
 
 {
-  # FastAPI + MongoDB "maker" service (NPL securitization report tooling).
+  # FastAPI + MongoDB "digester" service (NPL securitization report tooling).
   #
   #   devenv shell   # enter dev environment (installs deps via `uv sync`)
   #   devenv up      # run MongoDB + API with hot reload
@@ -81,7 +81,7 @@
   };
 
   enterShell = ''
-    echo "maker dev environment ready"
+    echo "digester dev environment ready"
     echo "  devenv up        # start MongoDB + API (http://127.0.0.1:8000)"
     echo "  seed <u> <p>     # pre-seed a login user into MongoDB"
     echo "  uv run <cmd>     # run commands inside the project venv"

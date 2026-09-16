@@ -1,0 +1,22 @@
+[project]
+name = "scheduler"
+version = "0.1.0"
+description = "APScheduler orchestration for the china-abs document pipeline."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "akshare>=1.17.0",
+    "apscheduler>=3.10.0,<4",
+    "china-model",
+    "pandas>=2.2.0",
+    "pgmq>=0.1.0",
+    "psycopg[binary]>=3.2",
+    "python-dotenv>=1.0.0",
+    "qiniu>=7.13.0",
+    "requests>=2.31.0",
+    "sqlalchemy>=2.0.0",
+    "toolz>=1.0.0",
+]
+
+[tool.uv.sources]
+china-model = { workspace = true }

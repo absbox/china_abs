@@ -1,5 +1,5 @@
 def main():
-    print("Hello from maker!")
+    print("Hello from digester!")
 
 
 if __name__ == "__main__":

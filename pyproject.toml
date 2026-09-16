@@ -12,4 +12,5 @@ members = [
     "absbox.cloud",
     "toMarkdown",
     "docToCloud",
+    "scheduler",
 ]
