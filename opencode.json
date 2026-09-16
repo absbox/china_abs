@@ -11,19 +11,6 @@
       "environment": {
         "DATABASE_URI": "{env:DATABASE_URI}"
       }
-    },
-    "mongodb": {
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "mongodb-mcp-server@latest",
-        "--readOnly"
-      ],
-      "enabled": true,
-      "environment": {
-        "MDB_MCP_CONNECTION_STRING": "{env:MONGODB_URI}"
-      }
     }
   }
 }

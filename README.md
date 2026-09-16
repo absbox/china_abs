@@ -30,9 +30,11 @@ The browser and analytics front end for Chinese credit ABS deals (NPL 不良资�
 
 ## china_model
 
-A minimal standalone package exposing the same Peewee data model as `absbox.cloud/model.py` as an importable library, decoupled from the web app. It self-loads a `.env` for PostgreSQL connectivity (and includes MongoDB support among its dependencies). Also reference the future `updater.py` placeholder.
+A standalone package that is the **single source of truth** for the Peewee data model shared across the monorepo. The schema lives in `src/china_model/models.py`; importing the package has no side effects — a host application calls `china_model.configure()` once at startup (reading `DATABASE_*` env vars or an explicit DSN) and the models bind to a `DatabaseProxy`.
 
-**Stack** — peewee + psycopg, bcrypt, fire, lenses, toolz, pymongo, rich; Python >= 3.13 managed with `uv`.
+Besides the deal/bond tables it also models the pipeline tables `QiniuStorage` (`qiniu_storage`) and `Mineru` (`mineru`) used by `docToCloud` and `toMarkdown`. A `model.py` shim is kept for legacy `from model import ...` imports. It is a member of the root `uv` workspace, so the other projects depend on it via `china-model = { workspace = true }`.
+
+**Stack** — peewee 4 (psycopg3) + bcrypt, fire, lenses, toolz, pymongo, rich; Python >= 3.13 managed with `uv`.
 
 ## maker
 

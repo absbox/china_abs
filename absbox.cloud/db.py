@@ -16,11 +16,12 @@ import psycopg
 from dotenv import load_dotenv
 load_dotenv()
 
-host = os.getenv("DATABASE_URL") # "localhost"
-dbName = os.getenv("DATABASE_NAME") #  'source'
-port = os.getenv("DATABASE_PORT")  # 65432   
-pwd = os.getenv("DATABASE_PASSWORD") # 'doadmin'
-connStr = (f"postgresql://doadmin:{pwd}@{host}:{port}/{dbName}?"
+host = os.getenv("DATABASE_HOST") or os.getenv("DATABASE_URL") or "localhost"
+dbName = os.getenv("DATABASE_NAME", "deal-library")
+port = os.getenv("DATABASE_PORT", "5432")
+user = os.getenv("DATABASE_USER", "doadmin")
+pwd = os.getenv("DATABASE_PASSWORD", "")
+connStr = (f"postgresql://{user}:{pwd}@{host}:{port}/{dbName}?"
           "keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5")
 
 logging.basicConfig(level=logging.INFO)

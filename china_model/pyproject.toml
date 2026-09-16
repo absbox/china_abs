@@ -1,15 +1,23 @@
 [project]
 name = "china-model"
 version = "0.1.0"
+description = "Shared Peewee data model and database access for the ABS pipeline."
 requires-python = ">=3.13"
 dependencies = [
     "bcrypt>=5.0.0",
     "fire>=0.7.1",
     "lenses>=1.2.0",
-    "peewee>=4.5.1",
+    "peewee>=4.5.1,<5",
     "psycopg[binary]>=3.3.5",
     "pymongo>=4.18.1",
     "python-dotenv>=1.2.3",
     "rich>=15.0.0",
     "toolz>=1.1.0",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/china_model"]

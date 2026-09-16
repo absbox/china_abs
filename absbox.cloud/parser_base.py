@@ -5,7 +5,10 @@ import json
 import toolz as tz
 from itertools import dropwhile,takewhile
 import re
-from cnc import convert
+try:
+    from cnc import convert
+except ImportError:  # optional/private dependency; only needed for CN numeral parsing
+    convert = None
 from dateparser import DateDataParser,parse
 from more_itertools import split_at,collapse,split_after
 from util import readHtmlTblToList,tryToMatch
@@ -758,6 +761,8 @@ def tryParseNumberIntCNEN(x):
     try:
         return int(x)
     except Exception as e:
+        if convert is None:
+            raise RuntimeError("the 'cnc' package is required to parse Chinese numerals")
         return convert.chinese2number(x)
 
 

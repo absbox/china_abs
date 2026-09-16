@@ -8,6 +8,8 @@ dependencies = []
 
 [tool.uv.workspace]
 members = [
+    "china_model",
+    "absbox.cloud",
     "toMarkdown",
     "docToCloud",
 ]
