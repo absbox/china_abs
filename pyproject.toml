@@ -13,4 +13,5 @@ members = [
     "toMarkdown",
     "docToCloud",
     "scheduler",
+    "dashboard",
 ]

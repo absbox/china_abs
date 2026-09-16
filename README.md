@@ -8,22 +8,28 @@ The repo is organized around several components:
 |---|---|
 | [`absbox.cloud/`](#absboxcloud) | FastAPI web app for browsing deals/series, per-deal analytics, bond screening, and issuance-rate projection |
 | [`china_model/`](#china_model) | Standalone Peewee data-model / DB-access library shared by the ABS workflow |
+| [`docToCloud/`](#doctocloud) | Scan chinabond.com.cn and sync new disclosure documents to Qiniu |
+| [`toMarkdown/`](#tomarkdown) | Download outstanding PDFs from Qiniu and convert them to markdown |
+| [`scheduler/`](#scheduler) | APScheduler orchestration of the document pipeline |
+| [`dashboard/`](#dashboard) | Task runner / CLI that calls the other projects and renders markdown |
 | [`digester/`](#digester) | LLM report-extraction service: routes ABS documents to typed schemas and stores results in MongoDB |
 | [`reader/`](#reader) | Generic async ETL that summaries markdown documents via an LLM into MongoDB |
 
 All components orbit a PostgreSQL database (`deal-library`) holding parsed deals, documents (including markdown extractions), and reference data such as the China government bond yield curve. The `main.py`/`pyproject.toml` files at the repo root are placeholder stubs.
 
-## Workflows (`justfile`)
+## Workflows (`dashboard/justfile`)
 
-The root `justfile` wires the day-to-day document pipeline to the subprojects
-(`docToCloud` → scan/download/upload, `scheduler` → deal init + allocation,
-`toMarkdown` → pdf→markdown, `digester` → LLM extraction).
+The task runner lives in the [`dashboard/`](#dashboard) project, which calls
+functions in the other subprojects and renders each result as markdown. Run it
+from that folder:
 
 ```bash
-just                 # list every recipe
-nix-shell            # NixOS: shell with just + the native libs
-uv sync --all-packages
+cd dashboard
+just                      # list every recipe
+just health               # health-check the whole project
 ```
+
+Setup (from the repo root): `nix-shell` then `uv sync --all-packages`.
 
 ### Requested workflows
 
@@ -108,6 +114,41 @@ An LLM-based report-extraction service for ABS/NPL transactions. It reads markdo
 It also ships a minimal FastAPI service with JWT authentication, a backfill script for unprocessed pricing reports, and a `seed_user.py` seeding script.
 
 **Stack** — FastAPI + uvicorn, instructor + openai, pydantic, psycopg / pymongo / motor, JWT (python-jose + passlib). Dev environments are defined via Nix `devenv` (Python 3.13 + uv, with a bundled MongoDB storing data under `./db`). Entrypoints: `seed <user> <pass>` and `uv run uvicorn app.main:app`.
+
+## dashboard
+
+The command dashboard and task runner for the whole project. `dashboard/api.py`
+exposes one function per pipeline action; each calls into a sibling subproject
+and returns Markdown, which `dashboard/main.py` renders. The `justfile` lives
+here and is the command-line entry point (`cd dashboard && just <recipe>`).
+
+It also health-checks the project (`just health`): database counts, outstanding
+work views, and required configuration. See
+[`dashboard/README.md`](dashboard/README.md) and the [Workflows](#workflows-dashboardjustfile)
+section above.
+
+**Stack** — rich, psycopg, china-model; it loads the sibling projects
+(docToCloud, toMarkdown, scheduler) through `bridge.py`. `digest` delegates to
+the `digester` project's own environment.
+
+## docToCloud
+
+Scans chinabond.com.cn and pulls new ABS/MBS disclosure documents into Qiniu:
+scan → diff against `qiniu_storage` → download → upload. Also models the
+`qiniu_storage` catalogue via `china_model`. Entry point: `python main.py
+{list,fetch,upload,sync}`.
+
+## toMarkdown
+
+Downloads outstanding PDFs from Qiniu and converts them to markdown
+(`pdf-inspector`), upserting into the `mineru` table. Entry point: `python
+main.py {list,download,download-all,inspect}`.
+
+## scheduler
+
+The APScheduler orchestration (exact port of `flow/dags/scheduler.py`, same 14
+jobs/crons) with job bodies built on the other subprojects. Entry point:
+`python main.py [--list]`.
 
 ## reader
 

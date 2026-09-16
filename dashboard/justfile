@@ -1,0 +1,112 @@
+# china-abs dashboard — task runner for the whole project (just)
+#
+# Just commands call the dashboard CLI (`dashboard/main.py`), which in turn
+# calls functions in the sibling subprojects and renders the result as
+# markdown (via `rich`).
+#
+# Run from this folder:  cd dashboard && just <recipe>
+
+set shell := ["bash", "-cu"]
+
+dash := justfile_directory()
+root := dash + "/.."
+py := root + "/.venv/bin/python"
+md := py + " -m rich.markdown -"
+today := `date +%Y-%m-%d`
+
+# Show available recipes
+default:
+    @just --list
+
+# Enter this project's nix shell
+shell:
+    nix-shell {{dash}}/shell.nix
+
+# Enter another component's dev shell: `just shell-in digester`
+shell-in component:
+    @cd {{root}}/{{component}} && nix-shell shell.nix
+
+# ==========================================================================
+# Pipeline workflows (call dashboard functions)
+# ==========================================================================
+
+# 1) Scan chinabond and download new files from BEGIN to END (default today),
+#    uploading them to Qiniu.  e.g. `just scan-download 2026-09-01`
+scan-download begin end=today:
+    @{{py}} {{dash}}/main.py scan-download {{begin}} {{end}}
+
+# 1b) Preview only: list scanned files still missing from Qiniu
+scan-list begin end=today:
+    @{{py}} {{dash}}/main.py scan-list {{begin}} {{end}}
+
+# 2) Run deal init for documents that arrived since SINCE (default today)
+deal-init since=today:
+    @{{py}} {{dash}}/main.py deal-init {{since}}
+
+# 3) Allocate newly uploaded files to existing deals since SINCE
+allocate since=today:
+    @{{py}} {{dash}}/main.py allocate {{since}}
+
+# 4) Convert PDFs to markdown by Qiniu key(s).
+#    e.g. `just convert "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"`
+convert +names:
+    @{{py}} {{dash}}/main.py convert {{names}}
+
+# 4b) Convert ALL outstanding PDFs that have no markdown yet
+convert-all:
+    @{{py}} {{dash}}/main.py convert-all
+
+# 4c) List PDFs still missing markdown
+convert-list:
+    @{{py}} {{dash}}/main.py convert-list
+
+# 5) Digest a list of markdown reports/files with a single question.
+#    e.g. `just digest PRICING_ANN "a.pdf" "b.pdf"`
+digest question +names:
+    @{{py}} {{dash}}/main.py digest {{question}} {{names}}
+
+# ==========================================================================
+# Manage / health-check the whole project
+# ==========================================================================
+
+# Health-check the whole china-abs project (DB + outstanding work + config)
+health:
+    @{{py}} {{dash}}/main.py health
+
+# Call a single dashboard function by name: `just call health`,
+# `just call convert-list`, `just call allocate 2026-09-16`
+call name *args:
+    @{{py}} {{dash}}/main.py call {{name}} {{args}}
+
+# Compile-check every Python component
+check:
+    @set -o pipefail; for d in reader china_model digester absbox.cloud docToCloud toMarkdown scheduler dashboard; do \
+        printf '\n## %s\n\n' "$d"; \
+        (cd {{root}}/$d && {{py}} -m py_compile $(find . -name '*.py' -not -path './__pycache__/*' -not -path '*/.venv/*' -not -path '*/.devenv/*') 2>&1 || true); \
+    done 2>&1 | {{md}}
+
+# Run the reader ETL pipeline
+reader:
+    @set -o pipefail; cd {{root}}/reader && python main.py 2>&1 | {{md}}
+
+# Run the digester API (uvicorn, hot reload) -- live server output
+digester:
+    cd {{root}}/digester && uv run uvicorn app.main:app --reload --port 8000
+
+# Run the absbox.cloud site (port 8001) -- live server output
+web:
+    cd {{root}}/absbox.cloud && PYTHONPATH=. python index.py
+
+# Run the absbox.cloud JSON API (port 8001) -- live server output
+api:
+    cd {{root}}/absbox.cloud && PYTHONPATH=. python webApi.py
+
+# Upload absbox.cloud (current dev branch code) to the dev folder via scp
+upload-web-dev:
+    @test "$(git -C {{root}} rev-parse --abbrev-ref HEAD)" = "dev" || { echo "Error: must be on dev branch"; exit 1; }
+    scp -r {{root}}/absbox.cloud alight:/home/xiaoyu/repo/absbox.cloud-dev
+
+# Upload absbox.cloud (current dev branch code) to the production folder via scp
+upload-web:
+    @test "$(git -C {{root}} rev-parse --abbrev-ref HEAD)" = "master" || { echo "Error: must be on master branch"; exit 1; }
+    scp -r {{root}}/absbox.cloud alight:/home/xiaoyu/repo/absbox.cloud
