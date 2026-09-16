@@ -1,6 +1,10 @@
 import multiprocessing
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 # 监听地址和端口（通常绑定本地，由Nginx转发）
-bind = "0.0.0.0:8001"
+bind = f"0.0.0.0:{os.getenv('PORT', '8001')}"
 # 使用Uvicorn的工作进程类
 worker_class = "uvicorn.workers.UvicornWorker"
 # 工作进程数，推荐为 (CPU核心数 * 2) + 1

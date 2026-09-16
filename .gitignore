@@ -32,5 +32,5 @@ absbox.cloud/.git/
 maker/bin/
 maker/include/
 maker/lib/
-maker/lib64/
+maker/lib64
 maker/pyvenv.cfg
