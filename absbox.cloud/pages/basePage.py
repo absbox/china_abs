@@ -13,7 +13,6 @@ assetPath = {
             link({"rel": "stylesheet", "href": "https://cdn.bootcdn.net/ajax/libs/bulma/1.0.4/css/bulma.min.css"}),
             #link({"rel": "stylesheet", "href": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"}),
             link({"rel": "stylesheet", "href": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"}),
-            script({"src": "https://cdn.bootcdn.net/ajax/libs/font-awesome/7.0.0/js/all.min.js"}),
             script({"src": "https://cdn.bootcdn.net/ajax/libs/htmx/2.0.7/htmx.min.js"}),
             script({"src": "https://cdn.bootcdn.net/ajax/libs/alpinejs/3.15.0/cdn.min.js","defer":True}),
             #script({"src": "https://cdn.jsdelivr.net/npm/chart.js"})
@@ -28,7 +27,6 @@ assetPath = {
             #link({"rel": "stylesheet", "href": "/static/bulma.toggle.min.css"}),
             
             #script({"src":"/static/tailwind.min.js"}),
-            script({"src": "/static/all.min.js"}),
             script({"src": "/static/htmx.min.js"}),
             #script({"src": "/static/focus.min.js"}),
             #script({"src": "/static/collapse.min.js"}),
