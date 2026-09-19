@@ -26,6 +26,6 @@ pkgs.mkShell {
     echo "  uv sync --all-packages   # install every workspace member"
     echo "  just --list              # component tasks"
     echo
-    echo "per-component shells: just shell-in <china_model|absbox.cloud|docToCloud|toMarkdown>"
+    echo "per-component shells: cd <component> && just shell"
   '';
 }

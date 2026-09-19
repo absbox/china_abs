@@ -39,7 +39,19 @@ seed <user> <pass>                     # pre-seed a login user into MongoDB
 uv run uvicorn app.main:app --reload   # run the API on :8000
 ```
 
-From the monorepo root: `just digester`.
+## Task runner (`justfile`)
+
+Run `just` from this folder:
+
+```bash
+just                                    # list recipes
+just digest PRICING_ANN "a.pdf" "b.pdf" # extract one question over reports
+just serve                              # run the API on :8000 (hot reload)
+just shell                              # enter the devenv shell
+```
+
+`NAME` in `just digest` is a mineru key (markdown fetched from Postgres) or a
+local markdown path; `QUESTION` is a registered key such as `PRICING_ANN`.
 
 ## Project structure
 
@@ -59,6 +71,7 @@ digester/
 │   └── enums.py
 ├── main.py              # placeholder entrypoint
 ├── seed_user.py         # user seeding script
+├── justfile             # task runner (`just digest` / `serve`)
 ├── devenv.nix/.yaml     # dev environment (Python 3.13 + uv + MongoDB)
 ├── shell.nix            # minimal Nix shell (nodejs)
 ├── pyproject.toml       # uv project (name = "digester")

@@ -1,7 +1,7 @@
 [project]
 name = "dashboard"
 version = "0.1.0"
-description = "Command dashboard for the china-abs pipeline: manages, health-checks and calls the other subprojects, rendering results as markdown."
+description = "Status / health checks for the china-abs pipeline, rendered as markdown."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

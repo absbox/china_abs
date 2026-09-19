@@ -1,0 +1,26 @@
+# docToCloud — task runner (just)
+#
+# Run from this folder:  just <recipe>
+
+set shell := ["bash", "-cu"]
+
+dir := justfile_directory()
+py := dir + "/../.venv/bin/python"
+today := `date +%Y-%m-%d`
+
+# Show available recipes
+default:
+    @just --list
+
+# Enter this project's nix shell
+shell:
+    cd {{dir}} && nix-shell shell.nix
+
+# Scan chinabond from BEGIN to END (default today), download files missing from
+# Qiniu and upload them.  e.g. `just scan-download 2026-09-01`
+scan-download begin end=today:
+    cd {{dir}} && {{py}} main.py sync --start {{begin}} --end {{end}}
+
+# Preview only: list scanned files still missing from Qiniu
+scan-list begin end=today:
+    cd {{dir}} && {{py}} main.py list --outstanding --start {{begin}} --end {{end}}

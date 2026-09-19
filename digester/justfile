@@ -1,0 +1,24 @@
+# digester — task runner (just)
+#
+# Run from this folder:  just <recipe>
+
+set shell := ["bash", "-cu"]
+
+dir := justfile_directory()
+
+# Show available recipes
+default:
+    @just --list
+
+# Enter the digester dev environment (devenv)
+shell:
+    cd {{dir}} && devenv shell
+
+# Digest a list of markdown reports/files with a single question.
+# e.g. `just digest PRICING_ANN "a.pdf" "b.pdf"`
+digest question +names:
+    cd {{dir}} && uv run python digest.py --question "{{question}}" {{names}}
+
+# Run the digester API (uvicorn, hot reload)
+serve:
+    cd {{dir}} && uv run uvicorn app.main:app --reload --port 8000

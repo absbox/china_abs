@@ -1,0 +1,31 @@
+# toMarkdown — task runner (just)
+#
+# Run from this folder:  just <recipe>
+
+set shell := ["bash", "-cu"]
+
+dir := justfile_directory()
+py := dir + "/../.venv/bin/python"
+
+# Show available recipes
+default:
+    @just --list
+
+# Enter this project's nix shell
+shell:
+    cd {{dir}} && nix-shell shell.nix
+
+# Convert PDFs to markdown by Qiniu key(s).
+# e.g. `just convert "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"`
+convert +names:
+    cd {{dir}} && for n in {{names}}; do {{py}} main.py download "$n"; done
+    cd {{dir}} && {{py}} main.py inspect
+
+# Convert ALL outstanding PDFs that have no markdown yet
+convert-all:
+    cd {{dir}} && {{py}} main.py download-all
+    cd {{dir}} && {{py}} main.py inspect
+
+# List PDFs still missing markdown
+convert-list:
+    cd {{dir}} && {{py}} main.py list

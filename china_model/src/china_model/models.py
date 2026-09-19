@@ -294,8 +294,30 @@ class Location(BaseModel):
     key = CharField()
     class Meta:
         indexes = (
-            (('name', 'bucket','key'), True),  # True means UNIQUE
+            (('name', 'bucket', 'key'), True),  # True means UNIQUE
         )
+
+class ReportType(BaseModel):
+    name = CharField(unique=True)
+    original = ForeignKeyField('self', backref='corrections', unique=True, null=True)
+
+    @property
+    def correction(self):
+        """返回该原始类型对应的纠正类型（如果有）"""
+        return self.corrections.get_or_none()
+
+
+
+class Report(BaseModel):
+    loc = ForeignKeyField(Location,unique=True)
+    deal = ForeignKeyField(Deal, backref='reports',null=True)
+    rptType = ForeignKeyField(ReportType, backref='reports',null=True)
+    date = DateField(null=True)
+    class Meta:
+        indexes = (
+            (('loc', 'deal', 'rptType'), True),  # True means UNIQUE
+        )
+
         
 class IssueFiles(BaseModel):
     deal = ForeignKeyField(Deal, backref='issueFiles')

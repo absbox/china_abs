@@ -26,7 +26,9 @@ import db
 log = logging.getLogger("doctocloud")
 
 PROJECT_DIR = Path(__file__).resolve().parent
-DEFAULT_DIR = str(PROJECT_DIR / "docs")
+REPO_ROOT = PROJECT_DIR.parent
+# Default download folder: <repo>/docToCloud/docs.
+DEFAULT_DIR = str(REPO_ROOT / "docToCloud" / "docs")
 
 
 def _add_scan_args(parser: argparse.ArgumentParser) -> None:

@@ -1,0 +1,19 @@
+# reader — task runner (just)
+#
+# Run from this folder:  just <recipe>
+
+set shell := ["bash", "-cu"]
+
+dir := justfile_directory()
+
+# Show available recipes
+default:
+    @just --list
+
+# Enter this project's nix shell
+shell:
+    cd {{dir}} && nix-shell shell.nix
+
+# Run the reader ETL pipeline
+run:
+    cd {{dir}} && python main.py

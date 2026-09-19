@@ -7,6 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
     "akshare>=1.17.0",
     "apscheduler>=3.10.0,<4",
+    "assembler",
     "china-model",
     "pandas>=2.2.0",
     "pgmq>=0.1.0",
@@ -20,3 +21,4 @@ dependencies = [
 
 [tool.uv.sources]
 china-model = { workspace = true }
+assembler = { workspace = true }

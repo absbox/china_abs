@@ -7,7 +7,8 @@ protection:
 * a file is skipped when its name is already a key in ``qiniu_storage``;
 * a file is skipped when its local MD5 is already recorded for another object;
 * after a successful upload the local copy is removed (unless ``keep`` is set)
-  and a row is written to ``qiniu_storage``.
+  and rows are written to ``qiniu_storage`` and the unified ``report``
+  catalogue (via ``location``/``reporttype``).
 """
 
 from __future__ import annotations
@@ -114,6 +115,7 @@ def upload_file(
     if record:
         now = int(datetime.now().timestamp())
         db.record_doc(bucket, key, now, ret["hash"], _remote_md5(key))
+        db.record_report(bucket, key)
 
     log.info("uploaded %s", key)
     if not keep and path.exists():

@@ -1,30 +1,29 @@
 # dashboard
 
-Command dashboard and task runner for the whole **china-abs** project. It:
+Status / health checks for the whole **china-abs** project. The dashboard is
+read-only: it inspects the shared database, the outstanding-work views and the
+required configuration, and renders the result as **Markdown** (via `rich`).
 
-- calls Python functions in the sibling subprojects,
-- renders every result as **Markdown** (via `rich`),
-- manages / health-checks the project,
-- exposes a single-function dispatcher and a `justfile` for the command line.
+Actions are **not** run from here. Each action lives with the component that
+owns the underlying function and is exposed by that component's own `justfile`
+(see [*Where the actions live*](#where-the-actions-live)).
 
 ## How it works
 
-`dashboard/api.py` is the API: one function per pipeline action. Each function
-loads the relevant subproject through `bridge.py` and returns a Markdown
-string.
+`dashboard/api.py` exposes the health checks. `health()` connects to PostgreSQL
+and MongoDB, counts the shared tables, asks the `scheduler` project's
+`jobs.health.run_check()` for the outstanding-work views, and lists which
+environment variables are set.
 
-`bridge.py` handles the fact that `docToCloud` and `toMarkdown` are flat-module
-projects that both define a top-level `db`/`cloud`: each is imported under a
-private module name with its internal `db` injected only for the duration of
-the import, so the two never collide. `scheduler` is imported as a package, and
-`digester` supplies the LLM extraction functions.
+`bridge.py` adds the `scheduler` project to `sys.path` so `jobs.health` can be
+imported.
 
 ```
 dashboard/
-├── main.py      # CLI: dispatch a command, render markdown
-├── api.py       # one function per action (+ REGISTRY)
-├── bridge.py    # cross-project import shims
-├── justfile     # `just <recipe>` -> python main.py <command>
+├── main.py      # CLI: render the health report as markdown
+├── api.py       # health / connection checks
+├── bridge.py    # imports scheduler.jobs.health
+├── justfile     # `just health`
 ├── pyproject.toml
 ├── shell.nix
 └── .env.example
@@ -39,55 +38,34 @@ nix-shell          # NixOS: python/uv + native libs
 uv sync --all-packages   # from the repo root (workspace member)
 ```
 
-Configuration is read from `.env` (git-ignored; see `.env.example`). The
-dashboard loads the repo `.env`; for `digest` it also loads
-`digester/.env` (LLM API keys).
+Configuration is read from `.env` (git-ignored; see `.env.example`).
 
 ## Usage
 
 Run from this folder (`cd dashboard`):
 
 ```bash
-just                      # list recipes
-just health               # health-check DB, outstanding work, config
-
-# the five pipeline workflows
-just scan-download 2026-09-01
-just scan-list 2026-09-01
-just deal-init 2026-09-16
-just allocate 2026-09-16
-just convert "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"
-just convert-all
-just convert-list
-just digest PRICING_ANN "a.pdf" "b.pdf"
+just              # list recipes
+just health       # health-check DB, outstanding work, config
 ```
 
-The same actions are available directly through the CLI:
+The same check is available directly through the CLI:
 
 ```bash
 python main.py health
-python main.py scan-download 2026-09-01
-python main.py call convert-list          # call a single function by name
-python main.py call allocate 2026-09-16
 ```
 
-| Command | Function | Calls into |
+## Where the actions live
+
+Run `just` from the component folder that owns the function:
+
+| Action | Component | Recipe |
 |---|---|---|
-| `scan-download BEGIN [END]` | `api.scan_download` | `docToCloud` (`chinabond` + `cloud` + `db`) |
-| `scan-list BEGIN [END]` | `api.scan_list` | `docToCloud` |
-| `deal-init [SINCE]` | `api.deal_init` | `scheduler.jobs.digest` |
-| `allocate [SINCE]` | `api.allocate` | `scheduler.jobs.digest` |
-| `convert NAME...` | `api.convert` | `toMarkdown` |
-| `convert-all` | `api.convert_all` | `toMarkdown` |
-| `convert-list` | `api.convert_list` | `toMarkdown` |
-| `digest QUESTION NAME...` | `api.digest` | `digester.app.llm` |
-| `health` | `api.health` | `china_model` + `scheduler.jobs.health` |
-| `call NAME [ARGS...]` | `api.REGISTRY[NAME]` | — |
+| scan / download / upload chinabond docs | `docToCloud` | `just scan-download BEGIN [END]`, `just scan-list BEGIN [END]` |
+| deal init / allocate | `scheduler` | `just deal-init [SINCE]`, `just allocate [SINCE]` |
+| pdf → markdown | `toMarkdown` | `just convert NAME...`, `just convert-all`, `just convert-list` |
+| LLM extraction | `digester` | `just digest QUESTION NAME...` |
+| reader ETL | `reader` | `just run` |
+| absbox.cloud site / API / deploy | `absbox.cloud` | `just web`, `just api`, `just upload-web-dev`, `just upload-web` |
 
-## Notes
-
-- `deal-init` / `allocate` call `scheduler/jobs/digest.py`; its classifier and
-  per-type handlers are still being ported from
-  `flow/dags/datasource/digestByNewFiles.py` and currently log `not migrated`.
-- `digest` names may be `mineru` keys or local markdown paths; `QUESTION` is a
-  registered key such as `PRICING_ANN`.
+See each component's README and `justfile` for details.

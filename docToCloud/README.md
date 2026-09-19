@@ -25,8 +25,10 @@ The `qiniu_storage` catalogue is accessed through the shared
    re-run never downloads the same PDF twice (use `--overwrite` to force it).
 4. **Upload** — `cloud.py` uploads each local file with `put_file_v2`, verifies
    the returned etag against the local Qiniu etag, records the object in
-   `qiniu_storage`, and (optionally) removes the local copy. Files already
-   present by key or MD5 are skipped.
+   `qiniu_storage`, registers the document in the unified `report` catalogue
+   (creating its `location` row and inferring its `reporttype` from the file
+   name), and (optionally) removes the local copy. Files already present by key
+   or MD5 are skipped.
 
 ## Setup
 
@@ -79,6 +81,19 @@ python main.py sync --start 2026-09-01 --end 2026-09-16
 
 Run with `uv run doctocloud ...` to use the installed console script.
 
+## Task runner (`justfile`)
+
+Run `just` from this folder:
+
+```bash
+just                            # list recipes
+just scan-download 2026-09-01   # scan, download and upload new files
+just scan-list 2026-09-01       # preview: list files still missing from Qiniu
+just shell                      # enter the Nix dev shell
+```
+
+`BEGIN`/`END` accept `YYYY-MM-DD`; `END` defaults to today.
+
 ## Project structure
 
 ```
@@ -87,6 +102,7 @@ docToCloud/
 ├── chinabond.py  # scanning, attachment parsing and download
 ├── cloud.py      # Qiniu upload + duplicate protection
 ├── db.py         # adapter over china_model's QiniuStorage model
+├── justfile      # task runner (`just scan-download` / `scan-list`)
 ├── pyproject.toml
 ├── shell.nix     # NixOS dev shell
 └── README.md
@@ -102,3 +118,4 @@ docToCloud/
 | `chinabond.RENAMES` | `datasource/downloader.py` `downloadAction` filename `match` cases |
 | `cloud.upload_file` / `upload_directory` | `datasource/cloud.py` `upload_single_file`, `uploadToQiniu2`, `upload_current_docs` |
 | `db.existing_docs` / `record_doc` | `datasource/db.py` `existingDocKey`, `hasFileByKey`, insert in `uploadToQiniu2` (now via `china_model.QiniuStorage`) |
+| `db.record_report` / `classify_report_type_name` | `datasource/digestByNewFiles.py` `classifyFiles` / `allocateToLocation` (location + report-type allocation) |

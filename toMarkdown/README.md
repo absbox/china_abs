@@ -49,6 +49,18 @@ python main.py inspect
 python main.py inspect /path/to/pdfs
 ```
 
+## Task runner (`justfile`)
+
+Run `just` from this folder:
+
+```bash
+just                              # list recipes
+just convert "path/to/file.pdf"   # download key(s) then convert docs/
+just convert-all                  # download + convert every outstanding PDF
+just convert-list                 # list PDFs still missing markdown
+just shell                        # enter the Nix dev shell
+```
+
 ## Project Structure
 
 ```
@@ -57,6 +69,7 @@ toMarkdown/
 ├── db.py         # adapter over china_model's QiniuStorage + Mineru models
 ├── cloud.py      # Qiniu file download via signed URLs
 ├── convert.py    # PDF-to-markdown conversion via pdf-inspector
+├── justfile      # task runner (`just convert` / `convert-all` / `convert-list`)
 ├── pyproject.toml
 ├── shell.nix     # NixOS dev shell
 └── README.md

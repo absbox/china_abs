@@ -36,6 +36,19 @@ Set `SCHEDULER_PERSIST=1` to enable the sqlalchemy jobstore from
 `scheduler_params` (`jobs.sqlite`); by default the in-memory scheduler used by
 `flow` is kept.
 
+## Task runner (`justfile`)
+
+Run `just` from this folder:
+
+```bash
+just                       # list recipes
+just deal-init 2026-09-16  # allocate new documents (allocate_to_location_by_date)
+just allocate 2026-09-16   # attach new uploads to existing deals (process_new)
+just shell                 # enter the Nix dev shell
+```
+
+`SINCE` accepts `YYYY-MM-DD` and defaults to today.
+
 ## Jobs (identical to `flow/dags/scheduler.py`)
 
 | id | cron | job |
@@ -84,6 +97,7 @@ token from `MINERU_TOKEN` (no longer hard-coded).
 scheduler/
 ├── main.py            # APScheduler entry point (exact port)
 ├── pathsetup.py       # puts docToCloud on sys.path
+├── justfile           # task runner (`just deal-init` / `allocate`)
 ├── jobs/
 │   ├── db.py          # Postgres helpers (china_model + psycopg)
 │   ├── mineru.py      # pgmq + MinerU batch API

@@ -1,0 +1,25 @@
+# scheduler — task runner (just)
+#
+# Run from this folder:  just <recipe>
+
+set shell := ["bash", "-cu"]
+
+dir := justfile_directory()
+py := dir + "/../.venv/bin/python"
+today := `date +%Y-%m-%d`
+
+# Show available recipes
+default:
+    @just --list
+
+# Enter this project's nix shell
+shell:
+    cd {{dir}} && nix-shell shell.nix
+
+# Run deal init for documents that arrived since SINCE (default today)
+deal-init since=today:
+    cd {{dir}} && {{py}} -c "import china_model; china_model.configure(); from jobs.digest import allocate_to_location_by_date; allocate_to_location_by_date('{{since}}')"
+
+# Allocate newly uploaded files to existing deals since SINCE (default today)
+allocate since=today:
+    cd {{dir}} && {{py}} -c "import china_model; china_model.configure(); from jobs.digest import process_new; process_new('{{since}}')"

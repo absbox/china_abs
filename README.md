@@ -11,38 +11,34 @@ The repo is organized around several components:
 | [`docToCloud/`](#doctocloud) | Scan chinabond.com.cn and sync new disclosure documents to Qiniu |
 | [`toMarkdown/`](#tomarkdown) | Download outstanding PDFs from Qiniu and convert them to markdown |
 | [`scheduler/`](#scheduler) | APScheduler orchestration of the document pipeline |
-| [`dashboard/`](#dashboard) | Task runner / CLI that calls the other projects and renders markdown |
+| [`dashboard/`](#dashboard) | Read-only status / health checks for the project |
+| [`assembler/`](#assembler) | Fill deal data: reads the `os_fill_*` reporting views and writes deals, bonds, payments and prices |
 | [`digester/`](#digester) | LLM report-extraction service: routes ABS documents to typed schemas and stores results in MongoDB |
 | [`reader/`](#reader) | Generic async ETL that summaries markdown documents via an LLM into MongoDB |
 
 All components orbit a PostgreSQL database (`deal-library`) holding parsed deals, documents (including markdown extractions), and reference data such as the China government bond yield curve. The `main.py`/`pyproject.toml` files at the repo root are placeholder stubs.
 
-## Workflows (`dashboard/justfile`)
+## Task runners (`justfile`)
 
-The task runner lives in the [`dashboard/`](#dashboard) project, which calls
-functions in the other subprojects and renders each result as markdown. Run it
-from that folder:
-
-```bash
-cd dashboard
-just                      # list every recipe
-just health               # health-check the whole project
-```
+Each component owns its `justfile`; run `just` from the component folder. The
+[`dashboard/`](#dashboard) is read-only and only exposes `just health`.
 
 Setup (from the repo root): `nix-shell` then `uv sync --all-packages`.
 
-### Requested workflows
-
-| Recipe | What it does |
-|---|---|
-| `just scan-download BEGIN [END]` | Scan chinabond from `BEGIN` to `END` (default today), download files missing from Qiniu and upload them (`docToCloud`). |
-| `just scan-list BEGIN [END]` | Preview only — list scanned files still missing from Qiniu. |
-| `just deal-init [SINCE]` | Run deal init for documents that arrived since `SINCE` (default today) (`scheduler.jobs.digest.allocate_to_location_by_date`). |
-| `just allocate [SINCE]` | Allocate newly uploaded files to existing deals (`scheduler.jobs.digest.process_new`). |
-| `just convert NAME...` | Download the given Qiniu key(s) then convert the folder PDFs to markdown (`toMarkdown`). |
-| `just convert-all` | Download and convert **all** outstanding PDFs that have no markdown yet. |
-| `just convert-list` | List PDFs still missing markdown. |
-| `just digest QUESTION NAME...` | Run one extraction question over a list of reports (`digester/digest.py`). |
+| Component | Recipe | What it does |
+|---|---|---|
+| `dashboard/` | `just health` | Health-check the whole project (DB, outstanding work, config). |
+| `docToCloud/` | `just scan-download BEGIN [END]` | Scan chinabond from `BEGIN` to `END` (default today), download files missing from Qiniu and upload them. |
+| `docToCloud/` | `just scan-list BEGIN [END]` | Preview only — list scanned files still missing from Qiniu. |
+| `scheduler/` | `just deal-init [SINCE]` | Run deal init for documents that arrived since `SINCE` (default today) (`scheduler.jobs.digest.allocate_to_location_by_date`). |
+| `scheduler/` | `just allocate [SINCE]` | Allocate newly uploaded files to existing deals (`scheduler.jobs.digest.process_new`). |
+| `toMarkdown/` | `just convert NAME...` | Download the given Qiniu key(s) then convert the folder PDFs to markdown. |
+| `toMarkdown/` | `just convert-all` | Download and convert **all** outstanding PDFs that have no markdown yet. |
+| `toMarkdown/` | `just convert-list` | List PDFs still missing markdown. |
+| `digester/` | `just digest QUESTION NAME...` | Run one extraction question over a list of reports (`digester/digest.py`). |
+| `reader/` | `just run` | Run the `reader` ETL pipeline. |
+| `absbox.cloud/` | `just web` / `just api` | Run the `absbox.cloud` site / JSON API (`:8001`). |
+| `absbox.cloud/` | `just upload-web-dev` / `just upload-web` | `scp` `absbox.cloud` to the dev / production folder. |
 
 `NAME` in `just digest` is either a `mineru` key (markdown fetched from
 Postgres) or a path to a local markdown file; `QUESTION` is a registered key
@@ -52,37 +48,64 @@ such as `PRICING_ANN`. `BEGIN`/`END`/`SINCE` accept `YYYY-MM-DD`.
 
 ```bash
 # 1. pull everything published since 1 Sep, upload to Qiniu
-just scan-download 2026-09-01
+cd docToCloud && just scan-download 2026-09-01
 
 # 2. initialise deals for the newly arrived documents
-just deal-init 2026-09-16
+cd scheduler && just deal-init 2026-09-16
 
 # 3. attach the new files to existing deals
-just allocate 2026-09-16
+cd scheduler && just allocate 2026-09-16
 
 # 4. pdf -> markdown: one specific file, or every outstanding file
-just convert "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"
-just convert-all
-just convert-list
+cd toMarkdown && just convert "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"
+cd toMarkdown && just convert-all
+cd toMarkdown && just convert-list
 
 # 5. ask one question across a batch of reports
-just digest PRICING_ANN "report-a.pdf" "report-b.pdf"
+cd digester && just digest PRICING_ANN "report-a.pdf" "report-b.pdf"
 ```
-
-### Component helpers
-
-| Recipe | What it does |
-|---|---|
-| `just shell` / `just shell-in <component>` | Enter the root / a component Nix dev shell. |
-| `just check` | `py_compile` every Python component. |
-| `just reader` / `just digester` | Run the `reader` ETL / the `digester` API (`:8000`). |
-| `just web` / `just api` | Run the `absbox.cloud` site / JSON API (`:8001`). |
-| `just upload-web-dev` / `just upload-web` | `scp` `absbox.cloud` to the dev / production folder. |
 
 > Note: `just deal-init` and `just allocate` call `scheduler/jobs/digest.py`.
 > The document classifier and the per-type allocation handlers there are still
 > being ported from `flow/dags/datasource/digestByNewFiles.py` and currently log
 > `not migrated` without modifying data.
+
+## Docker
+
+The whole repository can be built into one image and driven with `docker exec`.
+It is an idle **toolbox** image (PID 1 is `sleep infinity`) containing the shared
+`.venv` and the pipeline components — `china_model`, `docToCloud`, `toMarkdown`,
+`assembler`, `scheduler` and `dashboard` — plus `just`, so any component's
+recipes can be run inside the container:
+
+```bash
+# build (context = repository root)
+docker build -t china-abs:latest .
+
+# start the toolbox; config comes from the environment, never the image
+docker run -d --name china-abs --env-file .env \
+    -v "$PWD/docToCloud/docs:/app/docToCloud/docs" \
+    china-abs:latest
+
+# run `just` in a component folder
+docker exec -it -w /app/docToCloud china-abs just scan-list 2026-09-01
+docker exec -it -w /app/docToCloud china-abs just scan-download 2026-09-01 2026-09-16
+docker exec -it -w /app/toMarkdown china-abs just convert-list
+docker exec -it -w /app/toMarkdown china-abs just convert-all
+docker exec -it -w /app/scheduler  china-abs bash -lc 'python main.py --list'
+docker exec -it -w /app/dashboard  china-abs just health
+
+# or a one-off command instead of exec
+docker run --rm --env-file .env -w /app/docToCloud china-abs just scan-list
+```
+
+Notes:
+- `absbox.cloud` (heavy FastAPI/pandas/scipy web stack) and the Nix/devenv
+  components `flow`/`digester`/`reader`/`maker` are **not** in the image.
+- `.env` files are excluded from the build by `.dockerignore`; pass them with
+  `--env-file` at run time. The container needs outbound access to
+  `chinabond.com.cn`, Qiniu and PostgreSQL, and publishes no ports.
+- The `shell` recipes (`nix-shell`) do not work inside the container.
 
 ## absbox.cloud
 
@@ -117,19 +140,36 @@ It also ships a minimal FastAPI service with JWT authentication, a backfill scri
 
 ## dashboard
 
-The command dashboard and task runner for the whole project. `dashboard/api.py`
-exposes one function per pipeline action; each calls into a sibling subproject
-and returns Markdown, which `dashboard/main.py` renders. The `justfile` lives
-here and is the command-line entry point (`cd dashboard && just <recipe>`).
+Read-only status / health checks for the whole project. `dashboard/api.py`
+connects to PostgreSQL and MongoDB, counts the shared tables, asks `scheduler`
+for the outstanding-work views, and lists the required configuration; the
+result is rendered as Markdown by `dashboard/main.py`. Entry point:
+`cd dashboard && just health`.
 
-It also health-checks the project (`just health`): database counts, outstanding
-work views, and required configuration. See
-[`dashboard/README.md`](dashboard/README.md) and the [Workflows](#workflows-dashboardjustfile)
-section above.
+Actions are owned by the component that implements them — see each component's
+`justfile` and the [Task runners](#task-runners-justfile) section above, or
+[`dashboard/README.md`](dashboard/README.md).
 
-**Stack** — rich, psycopg, china-model; it loads the sibling projects
-(docToCloud, toMarkdown, scheduler) through `bridge.py`. `digest` delegates to
-the `digester` project's own environment.
+**Stack** — rich, psycopg, china-model; it loads `scheduler` through
+`bridge.py`.
+
+## assembler
+
+The fill layer between the parsed reports and the deal objects. `assembler/fill.py`
+is the port of `flow/dags/datasource/fill_data_fun.py`: each step reads one
+`os_fill_*` reporting view (or `os_llm_deal_waterfall`) and performs the
+corresponding writes into the shared `china_model` tables — pricing/Bond
+creation, issue plans, pre-closing rating data, clear reports, trustee periods
+and bond payments, pool performance, waterfall, sequence views, end dates,
+balance tie-outs and trading prices.
+
+It contains no LLM extraction and no orchestration; the scheduled job body lives
+in `scheduler/jobs/fill.py`, which imports these functions. Entry point:
+`python -m assembler.main {list,run}`.
+
+**Stack** — `china_model` (Peewee 4 + psycopg3), toolz, lenses, dateparser; an
+optional `llm` extra wires `fillWaterfall`/`calibrateTheName` to an
+OpenAI-compatible endpoint.
 
 ## docToCloud
 
