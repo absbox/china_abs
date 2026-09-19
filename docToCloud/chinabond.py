@@ -288,8 +288,13 @@ def scan(
 def outstanding_entries(
     entries: list[DocEntry], existing_keys: set[str]
 ) -> list[DocEntry]:
-    """Filter ``entries`` down to files whose key is not already in the cloud."""
-    return [e for e in entries if e.key not in existing_keys]
+    """Filter ``entries`` down to files whose Qiniu key is not already stored.
+
+    The object is uploaded under its local (renamed) file name, so the
+    comparison uses :attr:`DocEntry.local_name` rather than the display
+    :attr:`DocEntry.key`.
+    """
+    return [e for e in entries if e.local_name not in existing_keys]
 
 
 def update_download_link(page_url: str, raw_name: str) -> str:
@@ -324,10 +329,10 @@ def download_file(
                 for chunk in resp.iter_content(chunk_size=8192):
                     if chunk:
                         fh.write(chunk)
-        log.info("downloaded %s", file_name)
+        log.info("downloaded OK: %s -> %s", file_name, dest)
         return str(dest)
     except Exception as exc:  # noqa: BLE001
-        log.error("failed to download %s (%s): %s", file_name, url, exc)
+        log.error("download FAILED: %s (%s): %s", file_name, url, exc)
         if dest.exists():
             dest.unlink()
         return None
@@ -351,10 +356,18 @@ def download_entries(
         url = update_download_link(entry.doc_pub_url, entry.raw_name)
         return download_file(url, entry.local_name, output_dir, overwrite=overwrite)
 
+    log.info("downloading %d file(s) into %s", len(entries), output_dir)
     if workers > 1:
         with ThreadPoolExecutor(max_workers=workers) as pool:
             results = list(pool.map(_one, entries))
     else:
         results = [_one(e) for e in entries]
 
-    return [r for r in results if r]
+    downloaded = [r for r in results if r]
+    failed = len(entries) - len(downloaded)
+    log.info(
+        "download summary: %d downloaded, %d skipped/failed",
+        len(downloaded),
+        failed,
+    )
+    return downloaded

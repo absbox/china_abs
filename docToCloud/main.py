@@ -16,12 +16,14 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
 import chinabond
 import cloud
 import db
+import logging_utils
 
 log = logging.getLogger("doctocloud")
 
@@ -29,6 +31,10 @@ PROJECT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = PROJECT_DIR.parent
 # Default download folder: <repo>/docToCloud/docs.
 DEFAULT_DIR = str(REPO_ROOT / "docToCloud" / "docs")
+# Default log folder: <repo>/docToCloud/logs (one YYYY-MM-DD.log per day).
+DEFAULT_LOG_DIR = os.getenv(
+    "DOCTOCLOUD_LOG_DIR", str(REPO_ROOT / "docToCloud" / "logs")
+)
 
 
 def _add_scan_args(parser: argparse.ArgumentParser) -> None:
@@ -202,9 +208,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
-    )
+    logging_utils.configure_logging(DEFAULT_LOG_DIR)
     parser = build_parser()
     args = parser.parse_args()
     if not getattr(args, "command", None):

@@ -100,6 +100,28 @@ just shell                            # enter the Nix dev shell
   whose name matches `KEYWORD`; `BEGIN`/`END` are optional date filters.
 - `BEGIN`/`END` accept `YYYY-MM-DD`; `END` defaults to today.
 
+Both download recipes only fetch files whose Qiniu key is **not already in
+`qiniu_storage`**, so re-running them never re-downloads a document that has
+already been uploaded (the renamed attachments in `chinabond.RENAMES` are
+compared under their stored local name).
+
+## Logs
+
+Every run logs to both stderr and a daily text file under `docToCloud/logs/`,
+named `YYYY-MM-DD.log` (one file per calendar day; a long-running process rolls
+over at midnight). Each successfully downloaded file is recorded, as are
+failures and a per-run summary:
+
+```
+2026-09-20 09:30:01 - chinabond - INFO - downloading 3 file(s) into /tmp/pdfs
+2026-09-20 09:30:03 - chinabond - INFO - downloaded OK: 建欣...发行说明书.pdf -> /tmp/pdfs/建欣...发行说明书.pdf
+2026-09-20 09:30:04 - chinabond - ERROR - download FAILED: 某文件.pdf (https://...): 404 Client Error
+2026-09-20 09:30:05 - chinabond - INFO - download summary: 1 downloaded, 2 skipped/failed
+```
+
+The log directory defaults to `docToCloud/logs/` and can be overridden with the
+`DOCTOCLOUD_LOG_DIR` environment variable. The `logs/` folder is git-ignored.
+
 ## Project structure
 
 ```
@@ -108,7 +130,9 @@ docToCloud/
 ├── chinabond.py  # scanning, attachment parsing and download
 ├── cloud.py      # Qiniu upload + duplicate protection
 ├── db.py         # adapter over china_model's QiniuStorage model
+├── logging_utils.py  # daily file logging (logs/YYYY-MM-DD.log)
 ├── justfile      # task runner (`just scan` / `just download` / `just download-keyword`)
+├── logs/         # daily run logs (git-ignored)
 ├── pyproject.toml
 ├── shell.nix     # NixOS dev shell
 └── README.md
