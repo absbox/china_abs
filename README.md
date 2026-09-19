@@ -1,12 +1,11 @@
 # china-abs
 
-A monorepo for Chinese securitization (ABS) analytics. It covers the full lifecycle of a credit ABS deal — from reading raw prospectus/trustee documents, to extracting structured data with LLMs, to browsing deals and projecting issuance rates in a web dashboard.
+A monorepo for Chinese securitization (ABS) analytics. It covers the document half of the lifecycle of a credit ABS deal — from scanning raw prospectus/trustee disclosures, through PDF-to-markdown conversion and LLM extraction, to filling the structured deal/bond database. (The browser/analytics front end lives in a separate repository.)
 
 The repo is organized around several components:
 
 | Component | Purpose |
 |---|---|
-| [`absbox.cloud/`](#absboxcloud) | FastAPI web app for browsing deals/series, per-deal analytics, bond screening, and issuance-rate projection |
 | [`china_model/`](#china_model) | Standalone Peewee data-model / DB-access library shared by the ABS workflow |
 | [`docToCloud/`](#doctocloud) | Scan chinabond.com.cn and sync new disclosure documents to Qiniu |
 | [`toMarkdown/`](#tomarkdown) | Download outstanding PDFs from Qiniu and convert them to markdown |
@@ -16,39 +15,45 @@ The repo is organized around several components:
 | [`digester/`](#digester) | LLM report-extraction service: routes ABS documents to typed schemas and stores results in MongoDB |
 | [`reader/`](#reader) | Generic async ETL that summaries markdown documents via an LLM into MongoDB |
 
-All components orbit a PostgreSQL database (`deal-library`) holding parsed deals, documents (including markdown extractions), and reference data such as the China government bond yield curve. The `main.py`/`pyproject.toml` files at the repo root are placeholder stubs.
+All components orbit a PostgreSQL database (`deal-library`) holding parsed deals, documents (including markdown extractions), and reference data such as the China government bond yield curve.
+
+The repo also contains a few shared root files: `util.py` (helpers loaded by path from `assembler`), `Dockerfile` + `.dockerignore` (the whole-repo image, see [Docker](#docker)), and `main.py`/`shell.nix`/`.python-version` as workspace-level stubs. The web front end (`absbox.cloud`) and the legacy Airflow pipeline (`flow`) live outside this repository and are intentionally untracked.
 
 ## Task runners (`justfile`)
 
 Each component owns its `justfile`; run `just` from the component folder. The
 [`dashboard/`](#dashboard) is read-only and only exposes `just health`.
 
-Setup (from the repo root): `nix-shell` then `uv sync --all-packages`.
+Setup (from the repo root): `nix-shell` then `uv sync --all-packages`
+(`digester` and `reader` are separate — see their sections).
 
 | Component | Recipe | What it does |
 |---|---|---|
 | `dashboard/` | `just health` | Health-check the whole project (DB, outstanding work, config). |
-| `docToCloud/` | `just scan-download BEGIN [END]` | Scan chinabond from `BEGIN` to `END` (default today), download files missing from Qiniu and upload them. |
-| `docToCloud/` | `just scan-list BEGIN [END]` | Preview only — list scanned files still missing from Qiniu. |
+| `docToCloud/` | `just scan BEGIN [END]` | Scan chinabond from `BEGIN` to `END` (default today) and list files missing from Qiniu. |
+| `docToCloud/` | `just download PATH BEGIN [END]` | Download the missing files into `PATH`. |
 | `scheduler/` | `just deal-init [SINCE]` | Run deal init for documents that arrived since `SINCE` (default today) (`scheduler.jobs.digest.allocate_to_location_by_date`). |
 | `scheduler/` | `just allocate [SINCE]` | Allocate newly uploaded files to existing deals (`scheduler.jobs.digest.process_new`). |
 | `toMarkdown/` | `just convert NAME...` | Download the given Qiniu key(s) then convert the folder PDFs to markdown. |
 | `toMarkdown/` | `just convert-all` | Download and convert **all** outstanding PDFs that have no markdown yet. |
 | `toMarkdown/` | `just convert-list` | List PDFs still missing markdown. |
 | `digester/` | `just digest QUESTION NAME...` | Run one extraction question over a list of reports (`digester/digest.py`). |
+| `digester/` | `just serve` | Run the digester API (`uvicorn`, hot reload, `:8000`). |
 | `reader/` | `just run` | Run the `reader` ETL pipeline. |
-| `absbox.cloud/` | `just web` / `just api` | Run the `absbox.cloud` site / JSON API (`:8001`). |
-| `absbox.cloud/` | `just upload-web-dev` / `just upload-web` | `scp` `absbox.cloud` to the dev / production folder. |
 
 `NAME` in `just digest` is either a `mineru` key (markdown fetched from
 Postgres) or a path to a local markdown file; `QUESTION` is a registered key
 such as `PRICING_ANN`. `BEGIN`/`END`/`SINCE` accept `YYYY-MM-DD`.
 
+The `shell` recipe in each component enters that component's dev environment
+(`nix-shell` or `devenv`) and does not work inside the Docker image.
+
 ### Examples
 
 ```bash
-# 1. pull everything published since 1 Sep, upload to Qiniu
-cd docToCloud && just scan-download 2026-09-01
+# 1. list what's missing since 1 Sep, then download it to a folder
+cd docToCloud && just scan 2026-09-01
+cd docToCloud && just download /tmp/pdfs 2026-09-01
 
 # 2. initialise deals for the newly arrived documents
 cd scheduler && just deal-init 2026-09-16
@@ -88,39 +93,24 @@ docker run -d --name china-abs --env-file .env \
     china-abs:latest
 
 # run `just` in a component folder
-docker exec -it -w /app/docToCloud china-abs just scan-list 2026-09-01
-docker exec -it -w /app/docToCloud china-abs just scan-download 2026-09-01 2026-09-16
+docker exec -it -w /app/docToCloud china-abs just scan 2026-09-01
+docker exec -it -w /app/docToCloud china-abs just download /app/docToCloud/docs 2026-09-01 2026-09-16
 docker exec -it -w /app/toMarkdown china-abs just convert-list
 docker exec -it -w /app/toMarkdown china-abs just convert-all
 docker exec -it -w /app/scheduler  china-abs bash -lc 'python main.py --list'
 docker exec -it -w /app/dashboard  china-abs just health
 
 # or a one-off command instead of exec
-docker run --rm --env-file .env -w /app/docToCloud china-abs just scan-list
+docker run --rm --env-file .env -w /app/docToCloud china-abs just scan 2026-09-01
 ```
 
 Notes:
-- `absbox.cloud` (heavy FastAPI/pandas/scipy web stack) and the Nix/devenv
-  components `flow`/`digester`/`reader`/`maker` are **not** in the image.
+- The image includes the `uv` workspace members only; `digester`/`reader`
+  (separate `devenv` / `requirements.txt` environments) are **not** in it.
 - `.env` files are excluded from the build by `.dockerignore`; pass them with
   `--env-file` at run time. The container needs outbound access to
   `chinabond.com.cn`, Qiniu and PostgreSQL, and publishes no ports.
-- The `shell` recipes (`nix-shell`) do not work inside the container.
-
-## absbox.cloud
-
-The browser and analytics front end for Chinese credit ABS deals (NPL 不良资产, AUTO 汽车贷款, consumer, RMBS, etc.).
-
-**Features**
-- **Deal pages** — stage-dependent tabs: 发行信息 (financing structure, rating-agency pool stats), 相关发行 (historical comparable issue spreads), 评级观点 (rating views), 分配规则 (waterfall), 存续信息 (current pool performance & bond paydowns), 清算信息 (liquidation: recovery rates, bond XIRR / WAL / static returns), 文档速览 (transaction-document viewer).
-- **Pre-closing pipeline** — list pending ("待成立") and newly closed ("新成立") deals with status badges.
-- **Issuance-rate projection** — `/projectIssuanceRate` interpolates the China government bond yield curve and adds a historical spread from comparable same-series / same-asset-class deals.
-- **Bond screening** — `/bondScreen` filters bonds by face value, coupon, rating, asset class, and seniority.
-- **Trading prices** — aggregated by seniority / pool type / series.
-- **Document search** — keyword search over LLM-parsed markdown documents and rendered file preview.
-- **JSON API** — `webApi.py` exposes `/deals/`, `/deal/{id}/data`, `/deal/{id}/analytics`, and `/trading/{date}/`.
-
-**Stack** — FastAPI (HTML rendered server-side with htpy; Bulma, htmx, Alpine.js, ECharts), Peewee ORM + psycopg over PostgreSQL, pyxirr for IRR/XIRR, pandas/scipy for curve interpolation. Two apps: `index.py` (site) and `webApi.py` (JSON API), served with gunicorn/uvicorn on port 8001.
+- The `shell` recipes (`nix-shell` / `devenv`) do not work inside the container.
 
 ## china_model
 
@@ -136,7 +126,7 @@ An LLM-based report-extraction service for ABS/NPL transactions. It reads markdo
 
 It also ships a minimal FastAPI service with JWT authentication, a backfill script for unprocessed pricing reports, and a `seed_user.py` seeding script.
 
-**Stack** — FastAPI + uvicorn, instructor + openai, pydantic, psycopg / pymongo / motor, JWT (python-jose + passlib). Dev environments are defined via Nix `devenv` (Python 3.13 + uv, with a bundled MongoDB storing data under `./db`). Entrypoints: `seed <user> <pass>` and `uv run uvicorn app.main:app`.
+**Stack** — FastAPI + uvicorn, instructor + openai, pydantic, psycopg / pymongo / motor, JWT (python-jose + passlib). Dev environments are defined via Nix `devenv` (Python 3.13 + uv, with a bundled MongoDB storing data under `./db`). Entrypoints: `just digest QUESTION NAME...`, `just serve`, or `uv run uvicorn app.main:app`.
 
 ## dashboard
 
@@ -156,9 +146,9 @@ Actions are owned by the component that implements them — see each component's
 ## assembler
 
 The fill layer between the parsed reports and the deal objects. `assembler/fill.py`
-is the port of `flow/dags/datasource/fill_data_fun.py`: each step reads one
-`os_fill_*` reporting view (or `os_llm_deal_waterfall`) and performs the
-corresponding writes into the shared `china_model` tables — pricing/Bond
+is the port of the legacy Airflow `flow/dags/datasource/fill_data_fun.py`: each
+step reads one `os_fill_*` reporting view (or `os_llm_deal_waterfall`) and
+performs the corresponding writes into the shared `china_model` tables — pricing/Bond
 creation, issue plans, pre-closing rating data, clear reports, trustee periods
 and bond payments, pool performance, waterfall, sequence views, end dates,
 balance tie-outs and trading prices.
@@ -174,9 +164,11 @@ OpenAI-compatible endpoint.
 ## docToCloud
 
 Scans chinabond.com.cn and pulls new ABS/MBS disclosure documents into Qiniu:
-scan → diff against `qiniu_storage` → download → upload. Also models the
-`qiniu_storage` catalogue via `china_model`. Entry point: `python main.py
-{list,fetch,upload,sync}`.
+scan → diff against `qiniu_storage` → download → upload. After a successful
+upload it records the object in `qiniu_storage` and registers the document in
+the unified `report` catalogue (creating its `location` row and inferring its
+`reporttype` from the file name). Downloaded files default to
+`docToCloud/docs/`. Entry point: `python main.py {list,fetch,upload,sync}`.
 
 ## toMarkdown
 
@@ -186,15 +178,38 @@ main.py {list,download,download-all,inspect}`.
 
 ## scheduler
 
-The APScheduler orchestration (exact port of `flow/dags/scheduler.py`, same 14
-jobs/crons) with job bodies built on the other subprojects. Entry point:
-`python main.py [--list]`.
+The APScheduler orchestration (exact port of the legacy Airflow `flow` scheduler,
+same 14 jobs/crons) with job bodies built on the other subprojects. It reuses
+`docToCloud`'s flat modules by adding them to `sys.path` (`pathsetup.py`).
+Entry point: `python main.py [--list]`.
 
 ## reader
 
 A small async ETL pipeline that batch-processes markdown documents from a (remote) PostgreSQL table, LLM-extracts structured metadata (title, summary, key points, tags) via `instructor`, and idempotently upserts each result into MongoDB keyed by the source record id. Config is driven by env vars (see `.env.example`).
 
-**Stack** — asyncpg, motor, instructor + openai (AsyncOpenAI), pydantic-settings; any OpenAI-compatible endpoint works (e.g. OpenAI or Ollama). Entrypoint: `python main.py`.
+**Stack** — asyncpg, motor, instructor + openai (AsyncOpenAI), pydantic-settings; any OpenAI-compatible endpoint works (e.g. OpenAI or Ollama). Entrypoint: `python main.py` (or `just run`).
+
+## Repository layout
+
+```text
+china-abs/
+├── china_model/   # shared Peewee schema (installed as `china-model`)
+├── docToCloud/    # chinabond scan → download → Qiniu upload
+├── toMarkdown/    # Qiniu PDF → markdown (`mineru` table)
+├── scheduler/     # APScheduler orchestration
+├── assembler/     # os_fill_* views → deal/bond tables
+├── dashboard/     # read-only health checks
+├── digester/      # LLM extraction service (devenv)
+├── reader/        # async LLM summarisation ETL
+├── util.py        # shared helpers, loaded by path
+├── Dockerfile     # whole-repo pipeline image
+└── pyproject.toml # uv workspace root
+```
+
+The `uv` workspace members are `china_model`, `toMarkdown`, `docToCloud`,
+`scheduler`, `dashboard` and `assembler`; `digester` and `reader` manage their
+own environments (`devenv` / `requirements.txt`). `absbox.cloud`, `flow` and
+`maker` are not part of this repository and are git-ignored.
 
 ## Requirements
 
@@ -202,3 +217,4 @@ A small async ETL pipeline that batch-processes markdown documents from a (remot
 - PostgreSQL instance (named `deal-library`) with parsed deal and document data
 - MongoDB instance for LLM-extraction results
 - LLM API keys (e.g. `QWEN_API_KEY`, `DEEPSEEK_API_KEY`, `LLM_API_KEY`)
+- Qiniu credentials (`QINIU_ACCESS_KEY`, `QINIU_SECRET_KEY`, `QINIU_BUCKET`) for `docToCloud`/`toMarkdown`

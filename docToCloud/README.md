@@ -86,13 +86,19 @@ Run with `uv run doctocloud ...` to use the installed console script.
 Run `just` from this folder:
 
 ```bash
-just                            # list recipes
-just scan-download 2026-09-01   # scan, download and upload new files
-just scan-list 2026-09-01       # preview: list files still missing from Qiniu
-just shell                      # enter the Nix dev shell
+just                                  # list recipes
+just scan 2026-09-01                  # scan BEGIN..END, list files missing from Qiniu
+just download /tmp/pdfs 2026-09-01    # download those files into PATH
+just download-keyword /tmp/pdfs "邮盈惠丰2026年第五期"   # download by keyword
+just shell                            # enter the Nix dev shell
 ```
 
-`BEGIN`/`END` accept `YYYY-MM-DD`; `END` defaults to today.
+- `just scan BEGIN [END]` scans chinabond from `BEGIN` to `END` and lists the
+  files that are not yet in `qiniu_storage`.
+- `just download PATH BEGIN [END]` downloads the missing files into `PATH`.
+- `just download-keyword PATH KEYWORD [BEGIN] [END]` downloads the missing files
+  whose name matches `KEYWORD`; `BEGIN`/`END` are optional date filters.
+- `BEGIN`/`END` accept `YYYY-MM-DD`; `END` defaults to today.
 
 ## Project structure
 
@@ -102,7 +108,7 @@ docToCloud/
 ├── chinabond.py  # scanning, attachment parsing and download
 ├── cloud.py      # Qiniu upload + duplicate protection
 ├── db.py         # adapter over china_model's QiniuStorage model
-├── justfile      # task runner (`just scan-download` / `scan-list`)
+├── justfile      # task runner (`just scan` / `just download` / `just download-keyword`)
 ├── pyproject.toml
 ├── shell.nix     # NixOS dev shell
 └── README.md

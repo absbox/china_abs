@@ -16,11 +16,18 @@ default:
 shell:
     cd {{dir}} && nix-shell shell.nix
 
-# Scan chinabond from BEGIN to END (default today), download files missing from
-# Qiniu and upload them.  e.g. `just scan-download 2026-09-01`
-scan-download begin end=today:
-    cd {{dir}} && {{py}} main.py sync --start {{begin}} --end {{end}}
-
-# Preview only: list scanned files still missing from Qiniu
-scan-list begin end=today:
+# Scan chinabond from BEGIN to END (default today) and list the files that are
+# missing from Qiniu.  e.g. `just scan 2026-09-01`
+scan begin end=today:
     cd {{dir}} && {{py}} main.py list --outstanding --start {{begin}} --end {{end}}
+
+# Download the files missing from Qiniu for BEGIN..END (default today) into PATH.
+# e.g. `just download /tmp/pdfs 2026-09-01`
+download path begin end=today:
+    cd {{dir}} && {{py}} main.py fetch --dir {{path}} --start {{begin}} --end {{end}}
+
+# Download the files missing from Qiniu whose name matches KEYWORD into PATH.
+# Optional BEGIN/END narrow the scan by publication date.
+# e.g. `just download-keyword /tmp/pdfs "邮盈惠丰2026年第五期"`
+download-keyword path keyword begin="" end="":
+    cd {{dir}} && {{py}} main.py fetch --dir {{path}} --keyword "{{keyword}}" --start "{{begin}}" --end "{{end}}"

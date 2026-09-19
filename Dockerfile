@@ -7,7 +7,7 @@
 # any component folder via `docker exec`:
 #   docker run -d --name china-abs --env-file .env \
 #       -v "$PWD/docToCloud/docs:/app/docToCloud/docs" china-abs:latest
-#   docker exec -it -w /app/docToCloud china-abs just scan-list 2026-09-01
+#   docker exec -it -w /app/docToCloud china-abs just scan 2026-09-01
 #
 # Included: china_model, docToCloud, toMarkdown, assembler, scheduler, dashboard.
 # Excluded: absbox.cloud (heavy web stack) and the Nix/devenv components

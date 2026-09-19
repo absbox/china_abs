@@ -61,7 +61,7 @@ Run `just` from the component folder that owns the function:
 
 | Action | Component | Recipe |
 |---|---|---|
-| scan / download / upload chinabond docs | `docToCloud` | `just scan-download BEGIN [END]`, `just scan-list BEGIN [END]` |
+| scan / download chinabond docs | `docToCloud` | `just scan BEGIN [END]`, `just download PATH BEGIN [END]` |
 | deal init / allocate | `scheduler` | `just deal-init [SINCE]`, `just allocate [SINCE]` |
 | pdf → markdown | `toMarkdown` | `just convert NAME...`, `just convert-all`, `just convert-list` |
 | LLM extraction | `digester` | `just digest QUESTION NAME...` |
