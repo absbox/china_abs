@@ -81,35 +81,91 @@ The whole repository can be built into one image and driven with `docker exec`.
 It is an idle **toolbox** image (PID 1 is `sleep infinity`) containing the shared
 `.venv` and the pipeline components — `china_model`, `docToCloud`, `toMarkdown`,
 `assembler`, `scheduler` and `dashboard` — plus `just`, so any component's
-recipes can be run inside the container:
+recipes can be run inside the container. The entrypoint also starts `cron`,
+which runs the scheduled deal-docs downloads from `/etc/cron.d/doctocloud`
+(generated from `flow/dags/scheduler.py`; see
+[docToCloud](docToCloud/README.md#scheduled-downloads-docker)).
+
+### Build
 
 ```bash
-# build (context = repository root)
+# context = repository root
 docker build -t china-abs:latest .
+```
 
-# start the toolbox; config comes from the environment, never the image
-docker run -d --name china-abs --env-file .env \
+### Credentials (environment)
+
+All components share a single, git-ignored `.env` at the repository root.
+`--env-file` supplies it to the container; `.env` files are never baked into
+the image (`.dockerignore`). Start from the root template:
+
+```bash
+cp .env.example .env
+$EDITOR .env   # DATABASE_* + QINIU_ACCESS_KEY/SECRET_KEY (see the comments)
+```
+
+- `QINIU_BUCKET` / `QINIU_BUCKET_DOMAIN` are optional (they default to
+  `deal-docs` / `deal-doc.doclink.site`).
+- A full `DATABASE_URI=postgresql://...` DSN may be used instead of the
+  individual `DATABASE_*` variables; when set it takes precedence over them.
+- The same file also carries the optional `scheduler` (MinerU queue,
+  allocation, …), `digester` (LLM / JWT / MongoDB) and `reader` (`APP_*`)
+  settings — see [`.env.example`](.env.example).
+- Keep values unquoted: the `--env-file` format is plain `KEY=value` lines (no
+  `export`, no quotes), which python-dotenv and the dev-shell loaders also
+  accept.
+
+### Run
+
+```bash
+mkdir -p docToCloud/docs docToCloud/logs
+docker run -d --name china-abs --restart unless-stopped \
+    --env-file .env \
     -v "$PWD/docToCloud/docs:/app/docToCloud/docs" \
+    -v "$PWD/docToCloud/logs:/app/docToCloud/logs" \
     china-abs:latest
+```
 
-# run `just` in a component folder
+The container runs until stopped (`docker stop china-abs`). The entrypoint
+starts `cron`, so the scheduled downloads fire at the times in
+[docToCloud](docToCloud/README.md#scheduled-downloads-docker). Mounts:
+
+- `/app/docToCloud/docs` — DocToCloud's default download folder (its `--dir`
+  default). Mount it so downloaded PDFs survive container recreation. The CLI
+  creates it if missing.
+- `/app/docToCloud/logs` — the daily `YYYY-MM-DD.log` files. Optional, but
+  useful for auditing the scheduled runs.
+- Cron's own run output is appended to `/var/log/doctocloud-cron.log` inside the
+  container (no mount needed).
+
+Then drive `just` in any component folder:
+
+```bash
 docker exec -it -w /app/docToCloud china-abs just scan 2026-09-01
-docker exec -it -w /app/docToCloud china-abs just download /app/docToCloud/docs 2026-09-01 2026-09-16
+docker exec -it -w /app/docToCloud china-abs just download-issuance 2026-09-19
 docker exec -it -w /app/toMarkdown china-abs just convert-list
-docker exec -it -w /app/toMarkdown china-abs just convert-all
 docker exec -it -w /app/scheduler  china-abs bash -lc 'python main.py --list'
 docker exec -it -w /app/dashboard  china-abs just health
 
-# or a one-off command instead of exec
-docker run --rm --env-file .env -w /app/docToCloud china-abs just scan 2026-09-01
+# run the scheduled jobs immediately instead of waiting for the next cron tick
+docker exec china-abs /usr/sbin/cron -N
+# follow the scheduled-job output
+docker exec china-abs tail -f /var/log/doctocloud-cron.log
+```
+
+For a one-off command without keeping a container:
+
+```bash
+docker run --rm --env-file .env \
+    -v "$PWD/docToCloud/docs:/app/docToCloud/docs" \
+    -w /app/docToCloud china-abs just scan 2026-09-01
 ```
 
 Notes:
 - The image includes the `uv` workspace members only; `digester`/`reader`
   (separate `devenv` / `requirements.txt` environments) are **not** in it.
-- `.env` files are excluded from the build by `.dockerignore`; pass them with
-  `--env-file` at run time. The container needs outbound access to
-  `chinabond.com.cn`, Qiniu and PostgreSQL, and publishes no ports.
+- The container needs outbound access to `chinabond.com.cn`, Qiniu and
+  PostgreSQL, and publishes no ports.
 - The `shell` recipes (`nix-shell` / `devenv`) do not work inside the container.
 
 ## china_model
@@ -185,7 +241,7 @@ Entry point: `python main.py [--list]`.
 
 ## reader
 
-A small async ETL pipeline that batch-processes markdown documents from a (remote) PostgreSQL table, LLM-extracts structured metadata (title, summary, key points, tags) via `instructor`, and idempotently upserts each result into MongoDB keyed by the source record id. Config is driven by env vars (see `.env.example`).
+A small async ETL pipeline that batch-processes markdown documents from a (remote) PostgreSQL table, LLM-extracts structured metadata (title, summary, key points, tags) via `instructor`, and idempotently upserts each result into MongoDB keyed by the source record id. Config is driven by env vars (see the root [`.env.example`](.env.example)).
 
 **Stack** — asyncpg, motor, instructor + openai (AsyncOpenAI), pydantic-settings; any OpenAI-compatible endpoint works (e.g. OpenAI or Ollama). Entrypoint: `python main.py` (or `just run`).
 
@@ -201,8 +257,10 @@ china-abs/
 ├── dashboard/     # read-only health checks
 ├── digester/      # LLM extraction service (devenv)
 ├── reader/        # async LLM summarisation ETL
+├── .env.example   # unified env template (copy to .env)
 ├── util.py        # shared helpers, loaded by path
 ├── Dockerfile     # whole-repo pipeline image
+├── docker-entrypoint.sh  # starts cron, then the container command
 └── pyproject.toml # uv workspace root
 ```
 

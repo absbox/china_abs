@@ -1,0 +1,33 @@
+# Build context hygiene for the whole-repo china-abs image (context = repo root).
+
+# VCS / CI
+.git
+**/.git
+.gitignore
+.github
+
+# Python environments and caches
+.venv
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+# Secrets and local config (never bake these into an image)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local data / generated artefacts
+docs
+**/docs
+**/node_modules
+
+# Out-of-scope components (not workspace members here, or Nix/devenv-based)
+absbox.cloud
+flow
+digester
+reader
+maker

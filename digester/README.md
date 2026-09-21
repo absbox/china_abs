@@ -23,7 +23,8 @@ devenv up        # run MongoDB + API with hot reload (http://127.0.0.1:8000)
 devenv test      # validate the environment
 ```
 
-Credentials come from `.env` (git-ignored; see `.env.example`):
+Credentials come from the repo-root `.env` (git-ignored; see
+[`.env.example`](../.env.example)):
 
 | Variable | Description |
 |---|---|

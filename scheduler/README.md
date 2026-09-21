@@ -21,7 +21,8 @@ nix-shell          # NixOS: provides python/uv + native libs
 uv sync            # from the repo root (workspace member)
 ```
 
-Credentials come from `.env` (git-ignored; see `.env.example`): `DATABASE_*`,
+Credentials come from the repo-root `.env` (git-ignored; see
+[`.env.example`](../.env.example)): `DATABASE_*`,
 `QINIU_*`, `MINERU_TOKEN`, `MINERU_CALLBACK`, `PGMQ_*`, `DOCS_DIR`,
 `SCHEDULER_LOG_DIR`.
 
@@ -109,6 +110,5 @@ scheduler/
 │   ├── cloud.py       # archieveFiles
 │   └── fill.py        # LLM extract / fill orchestration
 ├── pyproject.toml
-├── shell.nix
-└── .env.example
+└── shell.nix
 ```

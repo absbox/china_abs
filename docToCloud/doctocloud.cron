@@ -1,0 +1,30 @@
+# /etc/cron.d/doctocloud — deal-docs download schedule.
+#
+# Mirrors the deal-docs download jobs in flow/dags/scheduler.py; each entry runs
+# the matching `just` recipe in /app/docToCloud.  The Dockerfile installs this
+# file as /etc/cron.d/doctocloud and docker-entrypoint.sh starts the cron
+# daemon.  Times are the container's local time (UTC unless TZ is set).
+#
+# `date -d` reproduces the scheduler's relative windows (cutDaysNum); `%` is
+# escaped as `\%` because cron treats it specially.  Credentials are loaded from
+# /etc/doctocloud.env, snapshotted by the entrypoint from the container
+# environment (docker run --env-file / -e).
+
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# eager_download_issue_file — download_issuance_pricing(cutDaysNum=1, ['发行文件'])
+# APScheduler: minute=30, hour=9-21, day_of_week=mon-sat
+30 9-21 * * 1-6 root [ -f /etc/doctocloud.env ] && . /etc/doctocloud.env; cd /app/docToCloud && /usr/local/bin/just download-issuance "$(date -d '1 day ago' +\%Y-\%m-\%d)" "$(date +\%Y-\%m-\%d)" >> /var/log/doctocloud-cron.log 2>&1
+
+# eager_download_pricing_file — download_pricing_outstanding_deal(cutDaysNum=10)
+# APScheduler: minute=0, hour=9-21, day_of_week=mon-sat
+0 9-21 * * 1-6 root [ -f /etc/doctocloud.env ] && . /etc/doctocloud.env; cd /app/docToCloud && /usr/local/bin/just download-pricing "$(date -d '10 days ago' +\%Y-\%m-\%d)" "$(date +\%Y-\%m-\%d)" >> /var/log/doctocloud-cron.log 2>&1
+
+# safenet_eager_download — download_issuance_pricing() (cutDaysNum=2, 发行文件+发行结果)
+# APScheduler: minute=0, hour=22, day_of_week=mon-sat
+0 22 * * 1-6 root [ -f /etc/doctocloud.env ] && . /etc/doctocloud.env; cd /app/docToCloud && /usr/local/bin/just download-issuance-pricing "$(date -d '2 days ago' +\%Y-\%m-\%d)" "$(date +\%Y-\%m-\%d)" >> /var/log/doctocloud-cron.log 2>&1
+
+# pullIncomeDocs — downloadDocs() (last 2 days, all document types)
+# APScheduler: minute=0, hour=19, every day
+0 19 * * * root [ -f /etc/doctocloud.env ] && . /etc/doctocloud.env; cd /app/docToCloud && /usr/local/bin/just download-deal-docs "$(date -d '2 days ago' +\%Y-\%m-\%d)" "$(date +\%Y-\%m-\%d)" >> /var/log/doctocloud-cron.log 2>&1

@@ -21,7 +21,13 @@ pkgs.mkShell {
 
   shellHook = ''
     export LD_LIBRARY_PATH=${pkgs.lib.makeLibraryPath libs}:$LD_LIBRARY_PATH
-    if [ -f .env ]; then set -a; . ./.env; set +a; fi
+    # Load the repo-root .env (one env file for the whole monorepo).
+    ENV_FILE="${toString ./.}/.env"
+    if [ -f "$ENV_FILE" ]; then
+      set -a
+      while IFS= read -r line; do export "$line"; done < <(grep -vE '^[[:space:]]*(#|$)' "$ENV_FILE")
+      set +a
+    fi
     echo "china-abs monorepo dev shell"
     echo "  uv sync --all-packages   # install every workspace member"
     echo "  just --list              # component tasks"

@@ -25,8 +25,7 @@ dashboard/
 ├── bridge.py    # imports scheduler.jobs.health
 ├── justfile     # `just health`
 ├── pyproject.toml
-├── shell.nix
-└── .env.example
+└── shell.nix
 ```
 
 ## Setup
@@ -38,7 +37,8 @@ nix-shell          # NixOS: python/uv + native libs
 uv sync --all-packages   # from the repo root (workspace member)
 ```
 
-Configuration is read from `.env` (git-ignored; see `.env.example`).
+Configuration is read from the repo-root `.env` (git-ignored; see
+[`.env.example`](../.env.example)).
 
 ## Usage
 

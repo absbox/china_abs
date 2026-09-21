@@ -11,7 +11,8 @@ nix-shell          # NixOS: provides python/uv + native libs
 uv sync            # from the repo root (workspace member)
 ```
 
-Create a `.env` (git-ignored) with the credentials:
+Credentials come from the repo-root `.env` (git-ignored; see
+[`.env.example`](../.env.example)):
 
 | Variable | Description |
 |----------|-------------|

@@ -31,3 +31,34 @@ download path begin end=today:
 # e.g. `just download-keyword /tmp/pdfs "邮盈惠丰2026年第五期"`
 download-keyword path keyword begin="" end="":
     cd {{dir}} && {{py}} main.py fetch --dir {{path}} --keyword "{{keyword}}" --start "{{begin}}" --end "{{end}}"
+
+# --- Deal docs download (mirrors flow/dags/scheduler.py) ---
+#
+# These recipes run the download half of the scheduler's deal-docs jobs by hand.
+# Each downloads the missing documents of one document type for BEGIN..END into
+# this project's docs/ folder (the scheduler's DOCS_DIR); allocation, MinerU and
+# deal attachment stay in the scheduler.
+
+# Issuance documents (发行文件) for BEGIN..END (default today).
+# Mirrors the `eager_download_issue_file` job.
+# e.g. `just download-issuance 2026-09-19`
+download-issuance begin end=today:
+    cd {{dir}} && {{py}} main.py fetch --dir {{dir}}/docs --doc-type 发行文件 --start {{begin}} --end {{end}}
+
+# Pricing results (发行结果) for BEGIN..END (default today).
+# Mirrors the `eager_download_pricing_file` job.
+# e.g. `just download-pricing 2026-09-10`
+download-pricing begin end=today:
+    cd {{dir}} && {{py}} main.py fetch --dir {{dir}}/docs --doc-type 发行结果 --start {{begin}} --end {{end}}
+
+# Issuance documents and pricing results (发行文件 + 发行结果) for BEGIN..END
+# (default today).  Mirrors the `safenet_eager_download` job.
+# e.g. `just download-issuance-pricing 2026-09-18`
+download-issuance-pricing begin end=today:
+    cd {{dir}} && {{py}} main.py fetch --dir {{dir}}/docs --doc-type 发行文件 --doc-type 发行结果 --start {{begin}} --end {{end}}
+
+# Every document type for BEGIN..END (default today) — the download step of the
+# `pullIncomeDocs` job.
+# e.g. `just download-deal-docs 2026-09-18`
+download-deal-docs begin end=today:
+    cd {{dir}} && {{py}} main.py fetch --dir {{dir}}/docs --start {{begin}} --end {{end}}

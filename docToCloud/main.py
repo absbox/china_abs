@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import chinabond
@@ -89,6 +90,51 @@ def _outstanding(entries: list[chinabond.DocEntry]) -> list[chinabond.DocEntry]:
     return chinabond.outstanding_entries(entries, db.existing_doc_keys())
 
 
+def _partition_by_local(
+    entries: list[chinabond.DocEntry], directory: str
+) -> tuple[list[chinabond.DocEntry], list[chinabond.DocEntry]]:
+    """Split ``entries`` into ``(on_disk, to_download)`` by local presence.
+
+    ``on_disk`` are entries whose file already exists in ``directory``; they do
+    not need downloading.  ``to_download`` are the rest.
+    """
+    target = Path(directory)
+    on_disk: list[chinabond.DocEntry] = []
+    to_download: list[chinabond.DocEntry] = []
+    for entry in entries:
+        if (target / entry.local_name).is_file():
+            on_disk.append(entry)
+        else:
+            to_download.append(entry)
+    return on_disk, to_download
+
+
+def _upload_existing(
+    entries: list[chinabond.DocEntry], directory: str, workers: int = 1
+) -> list[str]:
+    """Upload already-downloaded files to Qiniu and return their keys.
+
+    Each file is uploaded under its local name and recorded in
+    ``qiniu_storage``/``report``; the local copy is kept.  Entries whose key is
+    already in ``qiniu_storage`` are skipped.
+    """
+    target = Path(directory)
+    existing_keys = db.existing_doc_keys()
+    pending = [e for e in entries if e.local_name not in existing_keys]
+
+    def _one(entry: chinabond.DocEntry) -> str | None:
+        return cloud.upload_file(target / entry.local_name, keep=True)
+
+    if not pending:
+        return []
+    if workers > 1:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            results = list(pool.map(_one, pending))
+    else:
+        results = [_one(e) for e in pending]
+    return [r for r in results if r]
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     entries = _collect(args)
     print(f"Scanned {len(entries)} document(s).")
@@ -108,9 +154,24 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     entries = _collect(args)
     if not args.all:
         entries = _outstanding(entries)
-    print(f"Downloading {len(entries)} document(s) to {args.dir} ...")
+
+    # Files already present in the target folder are not downloaded again: they
+    # are uploaded to Qiniu as-is (which records them in qiniu_storage).  With
+    # --overwrite the user wants a fresh download, so skip this shortcut.
+    if args.overwrite:
+        on_disk, to_download = [], entries
+    else:
+        on_disk, to_download = _partition_by_local(entries, args.dir)
+    if on_disk:
+        print(
+            f"{len(on_disk)} file(s) already in {args.dir}; uploading without download."
+        )
+        uploaded = _upload_existing(on_disk, args.dir, workers=args.workers)
+        print(f"Uploaded {len(uploaded)} existing file(s) to Qiniu.")
+
+    print(f"Downloading {len(to_download)} document(s) to {args.dir} ...")
     paths = chinabond.download_entries(
-        entries, args.dir, workers=args.workers, overwrite=args.overwrite
+        to_download, args.dir, workers=args.workers, overwrite=args.overwrite
     )
     print(f"Downloaded {len(paths)} file(s).")
     return 0

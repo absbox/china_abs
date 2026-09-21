@@ -24,7 +24,8 @@ nix-shell          # optional, on NixOS
 uv sync            # from the repo root: installs this package + all members
 ```
 
-Create a `.env` (git-ignored) or export the variables:
+The repo-root `.env` (git-ignored; see [`.env.example`](../.env.example))
+or exported variables supply:
 
 | Variable | Default | Description |
 |---|---|---|

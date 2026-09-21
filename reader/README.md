@@ -17,8 +17,8 @@ nix-shell          # NixOS: Python + PostgreSQL client + MongoDB
 pip install -r requirements.txt
 ```
 
-Configuration is driven by environment variables (see `.env.example`) and read
-by `config.py`.
+Configuration is driven by environment variables (see the root
+[`.env.example`](../.env.example)) and read by `config.py`.
 
 ## Usage
 
@@ -46,6 +46,5 @@ reader/
 ├── mongo.py      # MongoDB sink
 ├── extractor.py  # instructor / OpenAI extraction
 ├── justfile
-├── shell.nix
-└── .env.example
+└── shell.nix
 ```

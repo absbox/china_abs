@@ -31,10 +31,10 @@
     MONGODBDATA = lib.mkForce "${config.devenv.root}/db";
   };
 
-  # Load variables from `.env` so shell commands (e.g. Postgres/deal-library
-  # tooling referenced in opencode.json) see them. `devenv` env values above
-  # take precedence; the app also self-loads `.env` at import time.
-  dotenv.enable = true;
+  # The repo-root `.env` is the single env file for the whole monorepo. It is
+  # loaded into the dev shell below (see `enterShell`); the app also self-loads
+  # it via python-dotenv at import time. `devenv` env values above take
+  # precedence over both.
 
   languages.python = {
     enable = true;
@@ -81,6 +81,14 @@
   };
 
   enterShell = ''
+    # Load the repo-root .env (one env file for the whole monorepo).
+    ENV_FILE="${config.devenv.root}/../.env"
+    if [ -f "$ENV_FILE" ]; then
+      set -a
+      while IFS= read -r line; do export "$line"; done < <(grep -vE '^[[:space:]]*(#|$)' "$ENV_FILE")
+      set +a
+    fi
+
     echo "digester dev environment ready"
     echo "  devenv up        # start MongoDB + API (http://127.0.0.1:8000)"
     echo "  seed <u> <p>     # pre-seed a login user into MongoDB"

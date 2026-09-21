@@ -35,3 +35,23 @@ digester/include/
 digester/lib/
 digester/lib64
 digester/pyvenv.cfg
+
+# Local document staging folders (downloaded PDFs)
+docToCloud/docs/
+toMarkdown/docs/
+scheduler/docs/
+dashboard/docs/
+
+# Daily run logs
+docToCloud/logs/
+scheduler/logs/
+dashboard/logs/
+
+# Legacy Airflow pipeline working copy (not a workspace member)
+flow/
+
+# Standalone web app, kept out of this repo
+absbox.cloud/
+
+# Local opencode config
+opencode.json
