@@ -63,7 +63,7 @@ Run `just` from the component folder that owns the function:
 |---|---|---|
 | scan / download chinabond docs | `docToCloud` | `just scan BEGIN [END]`, `just download PATH BEGIN [END]` |
 | deal init / allocate | `scheduler` | `just deal-init [SINCE]`, `just allocate [SINCE]` |
-| pdf → markdown | `toMarkdown` | `just convert NAME...`, `just convert-all`, `just convert-list` |
+| pdf → markdown | `toMarkdown` | `just process NAME...`, `just process-all`, `just list` |
 | LLM extraction | `digester` | `just digest QUESTION NAME...` |
 | reader ETL | `reader` | `just run` |
 | absbox.cloud site / API / deploy | `absbox.cloud` | `just web`, `just api`, `just upload-web-dev`, `just upload-web` |

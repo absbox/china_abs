@@ -29,7 +29,9 @@ pkgs.mkShell {
     echo "toMarkdown dev shell"
     echo "  uv sync                 # install dependencies"
     echo "  python main.py list"
-    echo "  python main.py download-all"
-    echo "  python main.py inspect"
+    echo "  python main.py process NAME...  # pdf-inspector -> paddle -> mineru"
+    echo "  python main.py inspect  # pdf-inspector"
+    echo "  python main.py mineru   # MinerU service"
+    echo "  python main.py paddle   # PaddleOCR-VL service"
   '';
 }

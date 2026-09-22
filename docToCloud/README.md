@@ -83,7 +83,7 @@ python main.py upload --dir ./docs --delete-local
 python main.py sync --start 2026-09-01 --end 2026-09-16
 ```
 
-Run with `uv run doctocloud ...` to use the installed console script.
+All commands also accept `--workers N` to download/upload concurrently.
 
 ## Task runner (`justfile`)
 

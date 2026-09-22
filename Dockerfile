@@ -24,12 +24,18 @@ FROM python:3.13-slim AS builder
 
 ARG TARGETARCH=amd64
 
+# Default to the Tencent PyPI mirror (matches the apt mirror below); build
+# elsewhere with:  docker build --build-arg PIP_INDEX_URL=https://pypi.org/simple .
+ARG PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
-    UV_PROJECT_ENVIRONMENT=/app/.venv
+    UV_PROJECT_ENVIRONMENT=/app/.venv \
+    PIP_INDEX_URL=${PIP_INDEX_URL} \
+    UV_DEFAULT_INDEX=${PIP_INDEX_URL}
 
 RUN pip install --no-cache-dir "uv==0.11.21"
 
@@ -68,7 +74,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 # `curl` + `ca-certificates` fetch the `just` release binary; `just` is what the
 # `docker exec` workflow drives.  `cron` runs the scheduled deal-docs downloads
-# from /etc/cron.d/doctocloud.
+# from /etc/cron.d/doctocloud.  curl is purged again after the download — only
+# `just`, `cron` and `ca-certificates` stay in the final image.
 #
 # Point apt at the Tencent Cloud mirror for faster installs in mainland China.
 # Debian bookworm+ ships /etc/apt/sources.list.d/debian.sources; older variants
@@ -86,8 +93,10 @@ RUN for f in /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list; do \
     esac \
  && curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-${JUST_ARCH}-unknown-linux-musl.tar.gz" \
       | tar -xz -C /usr/local/bin just \
- && rm -rf /var/lib/apt/lists/* \
- && just --version
+ && just --version \
+ && apt-get purge -y curl \
+ && apt-get autoremove -y --purge \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

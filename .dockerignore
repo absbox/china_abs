@@ -23,6 +23,9 @@
 # Local data / generated artefacts
 docs
 **/docs
+**/logs
+**/*.log
+**/*.part
 **/node_modules
 
 # Out-of-scope components (not workspace members here, or Nix/devenv-based)

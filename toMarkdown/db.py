@@ -8,6 +8,8 @@ effects.
 
 from __future__ import annotations
 
+import time
+
 import china_model
 from china_model import Mineru, QiniuStorage
 
@@ -24,20 +26,41 @@ def get_outstanding_files() -> list[str]:
     already_converted = Mineru.select(Mineru.key).where(Mineru.markdown.is_null(False))
     query = (
         QiniuStorage.select(QiniuStorage.key)
-        .where(QiniuStorage.key.not_in(already_converted))
+        .where(
+            QiniuStorage.key.is_null(False)
+            & QiniuStorage.key.not_in(already_converted)
+        )
         .distinct()
     )
     return [row.key for row in query]
 
 
+def converted_keys() -> set[str]:
+    """Return the set of keys that already have a non-null markdown extraction."""
+    ensure_configured()
+    rows = Mineru.select(Mineru.key).where(Mineru.markdown.is_null(False))
+    return {row.key for row in rows}
+
+
+def has_markdown(key: str) -> bool:
+    """Whether ``key`` already has a non-null markdown extraction."""
+    ensure_configured()
+    return (
+        Mineru.select()
+        .where((Mineru.key == key) & Mineru.markdown.is_null(False))
+        .exists()
+    )
+
+
 def save_markdown(key: str, markdown: str, model: str) -> None:
     """Upsert a markdown result into the mineru table."""
     ensure_configured()
+    now = int(time.time())
     (
-        Mineru.insert(key=key, markdown=markdown, model=model)
+        Mineru.insert(key=key, markdown=markdown, model=model, ts=now)
         .on_conflict(
             conflict_target=[Mineru.key],
-            update={Mineru.markdown: markdown, Mineru.model: model},
+            update={Mineru.markdown: markdown, Mineru.model: model, Mineru.ts: now},
         )
         .execute()
     )

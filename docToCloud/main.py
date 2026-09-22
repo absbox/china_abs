@@ -123,7 +123,11 @@ def _upload_existing(
     pending = [e for e in entries if e.local_name not in existing_keys]
 
     def _one(entry: chinabond.DocEntry) -> str | None:
-        return cloud.upload_file(target / entry.local_name, keep=True)
+        try:
+            return cloud.upload_file(target / entry.local_name, keep=True)
+        except Exception as exc:  # noqa: BLE001
+            log.error("upload failed for %s: %s", entry.local_name, exc)
+            return None
 
     if not pending:
         return []
@@ -270,6 +274,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     logging_utils.configure_logging(DEFAULT_LOG_DIR)
+    # Bind the shared database on the main thread before any worker pool
+    # starts using it (avoiding a configure() race between worker threads).
+    db.ensure_configured()
     parser = build_parser()
     args = parser.parse_args()
     if not getattr(args, "command", None):

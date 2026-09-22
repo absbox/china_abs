@@ -141,6 +141,7 @@ def search_docs(
     )
     results: list[dict] = []
     page = 1
+    prev_items: list[dict] | None = None
     while True:
         payload = {
             "parentChnlName": channel,
@@ -173,8 +174,16 @@ def search_docs(
             page,
             size,
         )
+        if items == prev_items:
+            log.warning(
+                "[search] page %s repeats page %s; stopping pagination",
+                page,
+                page - 1,
+            )
+            break
         results.extend(items)
-        if not size:
+        prev_items = items
+        if not items or not size:
             break
         page += 1
         if max_pages is not None and page > max_pages:
@@ -320,21 +329,23 @@ def download_file(
     if not overwrite and dest.exists() and dest.stat().st_size > 0:
         log.info("skipping %s (already downloaded)", file_name)
         return None
+    tmp = dest.with_name(dest.name + ".part")
     try:
         with requests.get(
             url, stream=True, headers=_DOWNLOAD_HEADERS, timeout=120
         ) as resp:
             resp.raise_for_status()
-            with open(dest, "wb") as fh:
+            with open(tmp, "wb") as fh:
                 for chunk in resp.iter_content(chunk_size=8192):
                     if chunk:
                         fh.write(chunk)
+        tmp.replace(dest)
         log.info("downloaded OK: %s -> %s", file_name, dest)
         return str(dest)
     except Exception as exc:  # noqa: BLE001
         log.error("download FAILED: %s (%s): %s", file_name, url, exc)
-        if dest.exists():
-            dest.unlink()
+        if tmp.exists():
+            tmp.unlink()
         return None
 
 

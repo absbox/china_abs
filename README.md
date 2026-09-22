@@ -34,9 +34,12 @@ Setup (from the repo root): `nix-shell` then `uv sync --all-packages`
 | `docToCloud/` | `just download PATH BEGIN [END]` | Download the missing files into `PATH`. |
 | `scheduler/` | `just deal-init [SINCE]` | Run deal init for documents that arrived since `SINCE` (default today) (`scheduler.jobs.digest.allocate_to_location_by_date`). |
 | `scheduler/` | `just allocate [SINCE]` | Allocate newly uploaded files to existing deals (`scheduler.jobs.digest.process_new`). |
-| `toMarkdown/` | `just convert NAME...` | Download the given Qiniu key(s) then convert the folder PDFs to markdown. |
-| `toMarkdown/` | `just convert-all` | Download and convert **all** outstanding PDFs that have no markdown yet. |
-| `toMarkdown/` | `just convert-list` | List PDFs still missing markdown. |
+| `toMarkdown/` | `just process NAME...` | Convert named PDFs with the fallback chain: pdf-inspector → paddle → mineru. |
+| `toMarkdown/` | `just process-all` | Run that fallback chain over **all** outstanding PDFs. |
+| `toMarkdown/` | `just list` | List PDFs still missing markdown (`convert-list` alias). |
+| `toMarkdown/` | `just pdfinspect NAME...` | Download and convert with pdf-inspector only (`convert` alias). |
+| `toMarkdown/` | `just paddle NAME...` | Convert with PaddleOCR-VL only. |
+| `toMarkdown/` | `just mineru NAME...` | Convert with the MinerU service only. |
 | `digester/` | `just digest QUESTION NAME...` | Run one extraction question over a list of reports (`digester/digest.py`). |
 | `digester/` | `just serve` | Run the digester API (`uvicorn`, hot reload, `:8000`). |
 | `reader/` | `just run` | Run the `reader` ETL pipeline. |
@@ -62,9 +65,12 @@ cd scheduler && just deal-init 2026-09-16
 cd scheduler && just allocate 2026-09-16
 
 # 4. pdf -> markdown: one specific file, or every outstanding file
-cd toMarkdown && just convert "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"
-cd toMarkdown && just convert-all
-cd toMarkdown && just convert-list
+cd toMarkdown && just process "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"
+cd toMarkdown && just process-all
+cd toMarkdown && just list
+cd toMarkdown && just pdfinspect-all    # pdf-inspector only
+cd toMarkdown && just mineru-all        # mineru only
+cd toMarkdown && just paddle-all        # paddle only
 
 # 5. ask one question across a batch of reports
 cd digester && just digest PRICING_ANN "report-a.pdf" "report-b.pdf"
@@ -143,7 +149,7 @@ Then drive `just` in any component folder:
 ```bash
 docker exec -it -w /app/docToCloud china-abs just scan 2026-09-01
 docker exec -it -w /app/docToCloud china-abs just download-issuance 2026-09-19
-docker exec -it -w /app/toMarkdown china-abs just convert-list
+docker exec -it -w /app/toMarkdown china-abs just list
 docker exec -it -w /app/scheduler  china-abs bash -lc 'python main.py --list'
 docker exec -it -w /app/dashboard  china-abs just health
 
@@ -228,9 +234,12 @@ the unified `report` catalogue (creating its `location` row and inferring its
 
 ## toMarkdown
 
-Downloads outstanding PDFs from Qiniu and converts them to markdown
-(`pdf-inspector`), upserting into the `mineru` table. Entry point: `python
-main.py {list,download,download-all,inspect}`.
+Downloads outstanding PDFs from Qiniu and converts them to markdown, upserting
+into the `mineru` table. Three backends live in subfolders: `pdfinspect/`
+(local `pdf-inspector`), `mineru/` (the MinerU batch service) and `paddle/`
+(local `PaddleOCR-VL`). `pipeline.py` chains them local-first (pdf-inspector →
+paddle → mineru) via `just process NAME...`. Entry point: `python
+main.py {list,process,download,download-all,inspect,mineru,paddle}`.
 
 ## scheduler
 

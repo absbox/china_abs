@@ -15,17 +15,63 @@ default:
 shell:
     cd {{dir}} && nix-shell shell.nix
 
-# Convert PDFs to markdown by Qiniu key(s).
-# e.g. `just convert "农盈利信远弘2025年第二期不良资产支持证券发行说明书.pdf"`
-convert +names:
+# List PDFs still missing markdown
+list:
+    cd {{dir}} && {{py}} main.py list
+
+# ---------------------------------------------------------------------------
+# Fallback pipeline: pdf-inspector -> paddle -> mineru
+# ---------------------------------------------------------------------------
+
+# Convert a list of PDF names, escalating engines until each is converted.
+# e.g. `just process "a.pdf" "b.pdf"`
+process +names:
+    cd {{dir}} && {{py}} main.py process {{names}}
+
+# Convert every outstanding PDF through the fallback pipeline
+process-all:
+    cd {{dir}} && {{py}} main.py process
+
+# ---------------------------------------------------------------------------
+# Individual engines
+# ---------------------------------------------------------------------------
+
+# pdf-inspector: download key(s) then convert docs/
+pdfinspect +names:
     cd {{dir}} && for n in {{names}}; do {{py}} main.py download "$n"; done
     cd {{dir}} && {{py}} main.py inspect
 
-# Convert ALL outstanding PDFs that have no markdown yet
-convert-all:
+# pdf-inspector: download and convert every outstanding PDF
+pdfinspect-all:
     cd {{dir}} && {{py}} main.py download-all
     cd {{dir}} && {{py}} main.py inspect
 
-# List PDFs still missing markdown
-convert-list:
-    cd {{dir}} && {{py}} main.py list
+# PaddleOCR-VL: download key(s) then convert docs/ one by one
+paddle +names:
+    cd {{dir}} && for n in {{names}}; do {{py}} main.py download "$n"; done
+    cd {{dir}} && {{py}} main.py paddle docs
+
+# PaddleOCR-VL: download and convert every outstanding PDF
+paddle-all:
+    cd {{dir}} && {{py}} main.py download-all
+    cd {{dir}} && {{py}} main.py paddle docs
+
+# MinerU: convert specific Qiniu key(s) (no download needed)
+mineru +names:
+    cd {{dir}} && for n in {{names}}; do {{py}} main.py mineru -k "$n"; done
+
+# MinerU: convert every outstanding Qiniu file
+mineru-all:
+    cd {{dir}} && {{py}} main.py mineru
+
+# MinerU: convert local PDFs in docs/
+mineru-docs:
+    cd {{dir}} && {{py}} main.py mineru docs
+
+# ---------------------------------------------------------------------------
+# Backwards-compatible aliases
+# ---------------------------------------------------------------------------
+
+alias convert := pdfinspect
+alias convert-all := pdfinspect-all
+alias convert-list := list

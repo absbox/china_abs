@@ -164,6 +164,13 @@ def upload_directory(
     if not queue:
         return []
 
+    def _one(path: Path) -> str | None:
+        try:
+            return upload_file(path, keep=keep)
+        except Exception as exc:  # noqa: BLE001
+            log.error("upload failed for %s: %s", path, exc)
+            return None
+
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-        results = list(pool.map(lambda f: upload_file(f, keep=keep), queue))
+        results = list(pool.map(_one, queue))
     return [k for k in results if k]
