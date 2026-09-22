@@ -23,6 +23,7 @@ MODEL = "inspector"
 def convert_file(path: str) -> str | None:
     """Convert a single PDF to markdown, or ``None`` when nothing was produced."""
     pdf_path = Path(path)
+    log.info("processing: %s", pdf_path.name)
     result = pdf_inspector.process_pdf_bytes(pdf_path.read_bytes())
     markdown = result.markdown
     if not markdown:

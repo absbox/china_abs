@@ -74,6 +74,15 @@ cd toMarkdown && just paddle-all        # paddle only
 
 # 5. ask one question across a batch of reports
 cd digester && just digest PRICING_ANN "report-a.pdf" "report-b.pdf"
+
+# 6. or run it in the prebuilt Docker toolbox image (see the Docker section)
+docker build --allow network.host -t china-abs:latest .
+docker run -d --name china-abs --restart unless-stopped \
+    --env-file .env \
+    -v "$PWD/docToCloud/docs:/app/docToCloud/docs" \
+    -v "$PWD/docToCloud/logs:/app/docToCloud/logs" \
+    china-abs:latest
+docker exec -it -w /app/docToCloud china-abs just scan 2026-09-01
 ```
 
 > Note: `just deal-init` and `just allocate` call `scheduler/jobs/digest.py`.
@@ -96,7 +105,12 @@ which runs the scheduled deal-docs downloads from `/etc/cron.d/doctocloud`
 
 ```bash
 # context = repository root
-docker build -t china-abs:latest .
+# --allow network.host: build steps use the host network so DNS works on
+# hosts whose resolver is a VPN/Tailscale MagicDNS (e.g. 100.100.100.100),
+# which is unreachable from the build's default bridge network. Otherwise
+# pip/uv/apt fail with misleading "Could not find a version that satisfies
+# the requirement uv==..." errors.
+docker build --allow network.host -t china-abs:latest .
 ```
 
 ### Credentials (environment)

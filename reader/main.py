@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 from config import load_config
 from postgres import PostgreSQLClient
 from mongo import MongoStore
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 async def main():
     config = load_config()
-    logging.basicConfig(level=getattr(logging, config.log_level))
+    logging.basicConfig(level=getattr(logging, config.log_level), stream=sys.stdout)
 
     pg = PostgreSQLClient(config.postgresql)
     mongo = MongoStore(config.mongodb)

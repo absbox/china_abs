@@ -86,6 +86,8 @@ def submit_batch(keys: list[str], model_version: str = "vlm") -> str:
         {"url": get_private_url(k), "data_id": str(i), "is_ocr": True}
         for i, k in enumerate(keys)
     ]
+    for key in keys:
+        log.info("processing: %s", key)
     data = {
         "enable_formula": True,
         "language": "ch",

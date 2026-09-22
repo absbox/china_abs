@@ -330,6 +330,7 @@ def download_file(
         log.info("skipping %s (already downloaded)", file_name)
         return None
     tmp = dest.with_name(dest.name + ".part")
+    log.info("downloading: %s", file_name)
     try:
         with requests.get(
             url, stream=True, headers=_DOWNLOAD_HEADERS, timeout=120

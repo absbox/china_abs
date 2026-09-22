@@ -9,6 +9,7 @@ automatically at midnight without restarting.
 from __future__ import annotations
 
 import logging
+import sys
 from datetime import date
 from pathlib import Path
 from typing import TextIO
@@ -61,7 +62,7 @@ class DailyFileHandler(logging.Handler):
 
 
 def configure_logging(log_dir: str | Path = DEFAULT_LOG_DIR) -> None:
-    """Log to stderr and to the daily file under ``log_dir``.
+    """Log to stdout and to the daily file under ``log_dir``.
 
     Idempotent: repeated calls do not stack duplicate handlers.
     """
@@ -78,7 +79,7 @@ def configure_logging(log_dir: str | Path = DEFAULT_LOG_DIR) -> None:
         for h in root.handlers
     )
     if not has_console:
-        console = logging.StreamHandler()
+        console = logging.StreamHandler(sys.stdout)
         console.setFormatter(formatter)
         root.addHandler(console)
 

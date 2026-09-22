@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from peewee import DatabaseProxy
 from playhouse.postgres_ext import PooledPsycopg3Database
 
-__all__ = ["db", "configure", "is_configured"]
+__all__ = ["db", "check_connection", "configure", "is_configured"]
 
 # Every model's ``Meta.database`` points at this proxy.  It is initialised by
 # :func:`configure` (usually once, at application startup).
@@ -33,6 +33,7 @@ db = DatabaseProxy()
 _DEFAULTS = {
     "max_connections": 20,
     "stale_timeout": 300,
+    "connect_timeout": 5,
     "register_hstore": True,
 }
 
@@ -106,3 +107,38 @@ def configure(
     conn = PooledPsycopg3Database(**options)
     db.initialize(conn)
     return conn
+
+
+def check_connection() -> None:
+    """Verify PostgreSQL is reachable, raising a user-readable error if not.
+
+    Runs ``SELECT 1`` against the configured database and raises
+    :class:`RuntimeError` with the target and the underlying cause when the
+    connection fails, so callers can show a clean message instead of a
+    traceback.
+
+    Raises:
+        RuntimeError: if the database is not configured or unreachable.
+    """
+    if db.obj is None:
+        raise RuntimeError(
+            "PostgreSQL is not configured yet; call china_model.configure() "
+            "before check_connection()"
+        )
+    try:
+        db.execute_sql("SELECT 1")
+    except Exception as exc:  # noqa: BLE001 - re-raised with a readable message
+        params = getattr(db.obj, "connect_params", None) or {}
+        host = params.get("host") or "?"
+        port = params.get("port") or "?"
+        database = (
+            params.get("dbname")
+            or params.get("database")
+            or getattr(db.obj, "database", None)
+            or "?"
+        )
+        raise RuntimeError(
+            f"Cannot connect to PostgreSQL at {host}:{port}/{database}. "
+            "Check DATABASE_* / DATABASE_URI in your .env, that the server "
+            f"is running and that the network is reachable. Underlying error: {exc}"
+        ) from exc

@@ -277,6 +277,13 @@ def main() -> None:
     # Bind the shared database on the main thread before any worker pool
     # starts using it (avoiding a configure() race between worker threads).
     db.ensure_configured()
+    # Pre-flight: fail with a readable message instead of a mid-run traceback
+    # when PostgreSQL is unreachable.
+    try:
+        db.check_connection()
+    except Exception as exc:  # noqa: BLE001
+        log.error("%s", exc)
+        sys.exit(1)
     parser = build_parser()
     args = parser.parse_args()
     if not getattr(args, "command", None):

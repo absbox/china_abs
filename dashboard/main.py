@@ -43,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     logging.basicConfig(
         level=logging.INFO,
-        stream=sys.stderr,
+        stream=sys.stdout,
         format="%(levelname)s %(name)s: %(message)s",
     )
     parser = build_parser()

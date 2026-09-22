@@ -178,7 +178,7 @@ docker stop china-abs                                        # stop the containe
 
 ## Logs
 
-Every run logs to both stderr and a daily text file under `docToCloud/logs/`,
+Every run logs to both stdout and a daily text file under `docToCloud/logs/`,
 named `YYYY-MM-DD.log` (one file per calendar day; a long-running process rolls
 over at midnight). Each successfully downloaded file is recorded, as are
 failures and a per-run summary:

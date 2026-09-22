@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import sys
 from functools import partial
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
@@ -77,6 +78,18 @@ def _log_dir() -> Path:
 def _configure_logging() -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    if not any(
+        isinstance(h, logging.StreamHandler)
+        and not isinstance(h, TimedRotatingFileHandler)
+        for h in root_logger.handlers
+    ):
+        console = logging.StreamHandler(sys.stdout)
+        console.setFormatter(formatter)
+        root_logger.addHandler(console)
     file_handler = TimedRotatingFileHandler(
         filename=_log_dir() / "scheduler.log",
         when="midnight",
@@ -84,12 +97,7 @@ def _configure_logging() -> None:
         backupCount=30,
         encoding="utf-8",
     )
-    file_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-    )
+    file_handler.setFormatter(formatter)
     root_logger.addHandler(file_handler)
 
 

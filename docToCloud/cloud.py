@@ -100,6 +100,7 @@ def upload_file(
         return None
 
     key = key or path.name
+    log.info("uploading: %s", key)
     bucket = bucket_name()
     auth = _get_auth()
     token = auth.upload_token(bucket, key, 36000)

@@ -10,5 +10,5 @@ and helpers you need::
     from china_model import Deal, Bond, QiniuStorage, Mineru
 """
 
-from .db import configure, db, is_configured
+from .db import check_connection, configure, db, is_configured
 from .models import *  # noqa: F401,F403

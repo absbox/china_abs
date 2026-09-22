@@ -52,6 +52,12 @@ def ensure_configured() -> None:
         china_model.configure()
 
 
+def check_connection() -> None:
+    """Fail fast with a readable error if PostgreSQL is unreachable."""
+    ensure_configured()
+    china_model.check_connection()
+
+
 def classify_report_type_name(key: str) -> str | None:
     """Return the consolidated report-type name for ``key``, or ``None``."""
     for name, pattern in _REPORT_TYPE_RULES:

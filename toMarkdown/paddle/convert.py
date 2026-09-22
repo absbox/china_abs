@@ -140,6 +140,7 @@ def fetch_markdown(jsonl_url: str) -> str:
 
 def convert_pdf(source: str) -> str:
     """Convert a single local PDF or URL to markdown."""
+    log.info("processing: %s", Path(source).name or source)
     job_id = submit_job(source)
     log.info("submitted %s -> job %s", source, job_id)
     return fetch_markdown(poll_job(job_id))

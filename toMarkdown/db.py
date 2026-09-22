@@ -20,6 +20,12 @@ def ensure_configured() -> None:
         china_model.configure()
 
 
+def check_connection() -> None:
+    """Fail fast with a readable error if PostgreSQL is unreachable."""
+    ensure_configured()
+    china_model.check_connection()
+
+
 def get_outstanding_files() -> list[str]:
     """Return names of files in qiniu_storage that have no markdown in mineru."""
     ensure_configured()

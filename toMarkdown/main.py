@@ -3,7 +3,7 @@ import logging
 import sys
 
 from cloud import download_file
-from db import get_outstanding_files
+from db import check_connection, get_outstanding_files
 from mineru.convert import convert_key_list, convert_outstanding, convert_pdfs as mineru_pdfs
 from paddle.convert import convert_pdfs as paddle_pdfs
 from pdfinspect.convert import convert_pdfs as inspect_pdfs
@@ -85,7 +85,10 @@ def cmd_process(args):
 
 def main():
     logging.basicConfig(
-        level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
+        level=logging.INFO,
+        stream=sys.stdout,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     parser = argparse.ArgumentParser(
         prog="tomarkdown",
@@ -169,6 +172,18 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(1)
+
+    # Pre-flight: fail with a readable message instead of a mid-run traceback
+    # when PostgreSQL is unreachable.
+    try:
+        check_connection()
+    except Exception as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     if args.command == "list":
         cmd_list(args)

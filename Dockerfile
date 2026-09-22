@@ -37,7 +37,13 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_INDEX_URL=${PIP_INDEX_URL} \
     UV_DEFAULT_INDEX=${PIP_INDEX_URL}
 
-RUN pip install --no-cache-dir "uv==0.11.21"
+# The network-dependent RUN steps use `--network=host`: on hosts whose DNS
+# lives in a VPN/Tailscale resolver (e.g. MagicDNS 100.100.100.100), the
+# default bridge network cannot resolve hostnames and pip/uv/apt fail with
+# misleading "Could not find a version that satisfies the requirement" errors.
+# Host networking reuses the working host resolv.conf.  (Requires BuildKit,
+# which is the default builder in modern Docker.)
+RUN --network=host pip install --no-cache-dir "uv==0.11.21"
 
 WORKDIR /app
 
@@ -53,7 +59,7 @@ COPY dashboard ./dashboard
 
 # UV_LINK_MODE=copy makes /app/.venv self-contained, so the cache is pure
 # duplication and is safe to remove before the venv is copied forward.
-RUN uv sync --frozen --no-dev \
+RUN --network=host uv sync --frozen --no-dev \
       --package china-model \
       --package doctocloud \
       --package tomarkdown \
@@ -80,7 +86,8 @@ ENV PYTHONUNBUFFERED=1 \
 # Point apt at the Tencent Cloud mirror for faster installs in mainland China.
 # Debian bookworm+ ships /etc/apt/sources.list.d/debian.sources; older variants
 # use /etc/apt/sources.list.
-RUN for f in /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list; do \
+RUN --network=host \
+    for f in /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list; do \
       [ -f "$f" ] || continue; \
       sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g; s|security.debian.org|mirrors.cloud.tencent.com|g' "$f"; \
     done \
